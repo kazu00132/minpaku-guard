@@ -31,5 +31,12 @@ export default function BookingsTableExample() {
     }
   ];
 
-  return <BookingsTable bookings={mockBookings} onViewDetails={(id) => console.log('View booking:', id)} />;
+  return (
+    <BookingsTable 
+      bookings={mockBookings} 
+      onViewDetails={(id) => console.log('View booking:', id)}
+      onCall={(id) => console.log('Call guest:', id)}
+      onEmail={(id) => console.log('Email guest:', id)}
+    />
+  );
 }

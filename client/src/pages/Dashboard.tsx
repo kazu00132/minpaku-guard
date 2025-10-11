@@ -73,6 +73,8 @@ export default function Dashboard() {
             <BookingsTable 
               bookings={todayBookings}
               onViewDetails={(id) => console.log('View booking:', id)}
+              onCall={(id) => console.log('Call guest from booking:', id)}
+              onEmail={(id) => console.log('Email guest from booking:', id)}
             />
           </Card>
         </div>

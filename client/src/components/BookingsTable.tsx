@@ -1,7 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
+import { Eye, Phone, Mail } from "lucide-react";
 import { format } from "date-fns";
 
 export interface Booking {
@@ -17,9 +17,11 @@ export interface Booking {
 interface BookingsTableProps {
   bookings: Booking[];
   onViewDetails?: (id: number) => void;
+  onCall?: (id: number) => void;
+  onEmail?: (id: number) => void;
 }
 
-export default function BookingsTable({ bookings, onViewDetails }: BookingsTableProps) {
+export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail }: BookingsTableProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "checked_in":
@@ -73,14 +75,32 @@ export default function BookingsTable({ bookings, onViewDetails }: BookingsTable
               </TableCell>
               <TableCell>{getStatusBadge(booking.status)}</TableCell>
               <TableCell className="text-right">
-                <Button 
-                  size="sm" 
-                  variant="ghost"
-                  onClick={() => onViewDetails?.(booking.id)}
-                  data-testid={`button-view-${booking.id}`}
-                >
-                  <Eye className="w-4 h-4" />
-                </Button>
+                <div className="flex justify-end gap-1">
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => onCall?.(booking.id)}
+                    data-testid={`button-call-${booking.id}`}
+                  >
+                    <Phone className="w-4 h-4" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => onEmail?.(booking.id)}
+                    data-testid={`button-email-${booking.id}`}
+                  >
+                    <Mail className="w-4 h-4" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => onViewDetails?.(booking.id)}
+                    data-testid={`button-view-${booking.id}`}
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
