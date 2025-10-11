@@ -1,0 +1,470 @@
+1. 概要
+
+本システムは、民泊運営を省力化しつつ「予約人数と実人数の差分を自動検知」し、アラート・連絡・鍵/ブレーカー制御まで一元管理できるダッシュボードを提供します。
+対象は富山の漁師町の景観を保全したい40代共働き夫婦で、空き家・長屋の有効活用（民泊化）と固定資産税負担の軽減を目指します。UIは**白えびピンク（#F6C6D0）**をアクセントカラーに採用します。
+
+1.1 目的
+
+チェックインの自動化と、実入室人数の自動カウント（カメラ映像×画像認識）
+
+**予約情報（氏名・年齢・免許証・予約日時・予約人数）**との突合・差分アラート
+
+鍵（SwitchBot）・ブレーカーの連携操作
+
+宿泊者への電話・メール連絡の一括管理
+
+夫婦が富山市（車で30分）から遠隔運用できる省力化
+
+1.2 想定構成（最小構成でReplit起動可）
+
+フロントエンド：Vite + React（TypeScript）
+
+バックエンド：FastAPI（Python）
+
+DB：SQLite（Replit上で手軽に開始）→将来はSupabase/PostgreSQLへ移行可能
+
+認証/管理：シンプルなパスワード認証（将来Cognito/Clerk等に置換）
+
+外部連携（抽象化）：
+
+メール：SendGrid（またはSMTP）
+
+電話/SMS：Twilio（または他社API）
+
+鍵/電源：SwitchBot Web API
+
+映像人数カウント：Webフックでバックエンドに投稿（ローカルEdge端末やクラウド推論からPOST）
+
+注：本設計はAPIインターフェースを固定し、実体サービスは.envで差し替えられるようにします。
+
+2. 利用者・背景（要件整理）
+2.1 システム利用者
+
+富山市在住の40代共働き夫婦。車で30分の距離から遠隔運用。
+
+夫：父親から猟師町の民家を相続。
+
+妻：猟師町近くの6世帯長屋の1戸を相続（建替・区分売却困難）。
+
+固定資産税の負担が重く、民泊で有効活用したい。
+
+景観保全のため大規模改修は避けたい。
+
+2.2 背景課題
+
+予約の人数と実際の宿泊人数がズレる問題（例：4名予約→夕食時に増員）。
+
+常時監視は困難 → 入口カメラで入退室時刻と人数をカウント・記録。
+
+予約情報と実人数の相違を自動アラート。
+
+運営全般の省力化（鍵/電源制御、連絡一体化）。
+
+3. 機能要件（UI/画面）
+3.1 画面一覧
+
+宿泊者一覧
+　予約日時 / 氏名 / 予約人数 / ステータス（未入室・入室中・チェックアウト）を表形式で表示。
+
+宿泊者詳細
+　氏名 / 年齢 / 免許証（画像）/ 予約日時 / 予約人数 / 顔写真（到着時撮影）/ 実人数ログ / 差分アラート履歴 / 連絡履歴。
+
+連絡画面
+　電話発信（Twilio）/ メール送信（SendGrid）/ テンプレートメッセージ / 送達結果ログ。
+
+デバイス制御画面
+　玄関の開錠・施錠、ブレーカーON/OFF（SwitchBot API）。実行ログ・失敗時のリトライ。
+
+3.2 画面ワイヤ（簡易ASCII）
+[宿泊者一覧]
+------------------------------------------------------------
+| 予約日時       | 氏名         | 予約人数 | 実人数 | 状態   |
+------------------------------------------------------------
+| 2025-10-20 15:00 | 山田 太郎     |   4     |   3   | 未入室 |
+| 2025-10-21 16:00 | 佐藤 花子     |   2     |   2   | 入室中 |
+...
+
+[宿泊者詳細]
+- 基本: 氏名/年齢/免許証画像/予約日時/予約人数/顔写真
+- ログ: 入退室タイムライン（実人数推移グラフ）
+- アラート: 差分検知履歴（未対応/対応済フラグ）
+- 操作: 電話/メール/鍵/ブレーカー
+
+[デバイス制御]
+- 鍵: 施錠/解錠 ボタン（状態表示）
+- 電源: OFF/ON ボタン（状態表示）
+- 実行結果: トースト + ログ
+
+3.3 カラーパレット
+
+アクセント：白えびピンク #F6C6D0
+
+ベース：ホワイト #FFFFFF / グレー #F5F5F5
+
+文字：ダークグレー #333333
+
+成功：#22C55E / 警告：#F59E0B / 危険：#EF4444
+
+4. 非機能要件
+
+可用性：家庭利用＋小規模民泊の想定（Replit上は開発/PoC、本番はVPS/AWS移行を推奨）。
+
+セキュリティ：個人情報（免許証・顔写真）を暗号化保管。TLS必須。RBAC最小権限。
+
+監査性：入退室検知・アラート・操作・通知の全イベントを監査ログに保存。
+
+拡張性：施設・部屋追加、複数物件管理にスケール可能なデータモデル。
+
+プライバシー：顔写真/免許証取扱いに同意取得。保存期間・削除要請対応。
+
+5. 全体アーキテクチャ
+[Edgeカメラ/人数カウンタ] --(Webhook/HTTPS)--> [FastAPI]
+                                                ├─ 人数対予約の差分判定
+                                                ├─ SendGrid/Twilio/Slack通知
+                                                ├─ SwitchBot制御
+                                                └─ SQLite (将来PG)
+[Reactフロント] <------ REST/JSON ------> [FastAPI API]
+
+6. データモデル（SQLite想定）
+6.1 主なテーブル
+
+guests（宿泊者基本）
+
+id PK, full_name, age, license_image_url, face_image_url, phone, email
+
+bookings（予約）
+
+id PK, guest_id FK, reserved_at（日時）, reserved_count（予約人数）, room_id FK, status（booked / checked_in / checked_out / canceled）
+
+rooms（部屋/物件）
+
+id PK, name, address, notes
+
+entry_events（入退室イベント）
+
+id PK, booking_id FK, timestamp, event_type（enter/leave）, people_count（その瞬間の人数）
+
+alerts（差分アラート）
+
+id PK, booking_id FK, detected_at, reserved_count, actual_count, status（open/ack/resolved）
+
+notifications（連絡ログ）
+
+id PK, booking_id FK, type（call/email/sms）, recipient, content, sent_at, result
+
+devices（SwitchBot等）
+
+id PK, room_id FK, type（lock/breaker）, name, external_id
+
+audit_logs（監査）
+
+id PK, actor（system/user/email）、action、target_id、meta_json、created_at
+
+6.2 最小SQL（初期化）
+CREATE TABLE guests(
+  id INTEGER PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  age INTEGER,
+  license_image_url TEXT,
+  face_image_url TEXT,
+  phone TEXT,
+  email TEXT
+);
+
+CREATE TABLE rooms(
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  address TEXT,
+  notes TEXT
+);
+
+CREATE TABLE bookings(
+  id INTEGER PRIMARY KEY,
+  guest_id INTEGER NOT NULL,
+  room_id INTEGER NOT NULL,
+  reserved_at TEXT NOT NULL,
+  reserved_count INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'booked',
+  FOREIGN KEY(guest_id) REFERENCES guests(id),
+  FOREIGN KEY(room_id) REFERENCES rooms(id)
+);
+
+CREATE TABLE entry_events(
+  id INTEGER PRIMARY KEY,
+  booking_id INTEGER NOT NULL,
+  timestamp TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  people_count INTEGER NOT NULL,
+  FOREIGN KEY(booking_id) REFERENCES bookings(id)
+);
+
+CREATE TABLE alerts(
+  id INTEGER PRIMARY KEY,
+  booking_id INTEGER NOT NULL,
+  detected_at TEXT NOT NULL,
+  reserved_count INTEGER NOT NULL,
+  actual_count INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open',
+  FOREIGN KEY(booking_id) REFERENCES bookings(id)
+);
+
+CREATE TABLE notifications(
+  id INTEGER PRIMARY KEY,
+  booking_id INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  recipient TEXT NOT NULL,
+  content TEXT,
+  sent_at TEXT,
+  result TEXT,
+  FOREIGN KEY(booking_id) REFERENCES bookings(id)
+);
+
+CREATE TABLE devices(
+  id INTEGER PRIMARY KEY,
+  room_id INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  name TEXT,
+  external_id TEXT NOT NULL,
+  FOREIGN KEY(room_id) REFERENCES rooms(id)
+);
+
+CREATE TABLE audit_logs(
+  id INTEGER PRIMARY KEY,
+  actor TEXT NOT NULL,
+  action TEXT NOT NULL,
+  target_id TEXT,
+  meta_json TEXT,
+  created_at TEXT NOT NULL
+);
+
+7. API設計（FastAPI / REST）
+7.1 OpenAPI（抜粋・YAML）
+openapi: 3.0.3
+info:
+  title: Minpaku Guard API
+  version: "1.0"
+paths:
+  /bookings:
+    get:
+      summary: 予約一覧取得
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [booked, checked_in, checked_out, canceled] }
+      responses: { "200": { description: OK } }
+    post:
+      summary: 予約作成
+      requestBody: { required: true }
+      responses: { "201": { description: Created } }
+
+  /bookings/{id}:
+    get:
+      summary: 予約詳細取得
+      responses: { "200": { description: OK } }
+
+  /bookings/{id}/notify:
+    post:
+      summary: 宿泊者へ通知（電話/メール/SMS）
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel: { type: string, enum: [call, email, sms] }
+                message: { type: string }
+      responses: { "200": { description: Sent } }
+
+  /devices/{deviceId}/command:
+    post:
+      summary: デバイス制御（鍵/ブレーカー）
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                op: { type: string, enum: [lock, unlock, power_on, power_off] }
+      responses: { "200": { description: Executed } }
+
+  /webhooks/entry:
+    post:
+      summary: 入退室イベント受信（カメラ推論から）
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                booking_id: { type: integer }
+                timestamp: { type: string, format: date-time }
+                event_type: { type: string, enum: [enter, leave] }
+                people_count: { type: integer }
+      responses: { "200": { description: Recorded } }
+
+  /alerts:
+    get:
+      summary: 差分アラート一覧
+      responses: { "200": { description: OK } }
+
+7.2 差分判定ロジック（擬似）
+on entry_event(booking_id, people_count):
+  latest_actual = last(entry_events for booking_id).people_count
+  reserved = bookings[booking_id].reserved_count
+  if latest_actual > reserved:
+     create alerts(open)
+     notify owners (email/sms)
+
+8. 外部連携の抽象API
+8.1 SwitchBot（例：鍵/ブレーカー）
+
+.env で SWITCHBOT_TOKEN, SWITCHBOT_SECRET, SWITCHBOT_DEVICE_ID_LOCK, SWITCHBOT_DEVICE_ID_BREAKER を設定。
+
+POST /devices/{deviceId}/command → FastAPIでSwitchBot APIへ橋渡し。
+
+操作は必ず監査ログに記録。
+
+8.2 メール/電話
+
+メール：SendGrid APIキー、差出人ドメインを.envで指定。
+
+電話/SMS：TwilioのSID/Token/発信番号を.envで指定。
+
+送達結果・失敗時の再送戦略（指数バックオフ）を実装。
+
+8.3 入退室Webhook（人数カウント）
+
+エッジ（Raspberry Pi + USBカメラ等）やクラウド推論から /webhooks/entry にPOST。
+
+1回のenter/leaveで現在値people_countを送り、サーバ側で時系列整合性チェック。
+
+9. フロントエンド（React）
+9.1 ルーティング
+
+/ … ダッシュボード（今日の到着予定・アラート数・デバイス状態）
+
+/bookings … 宿泊者一覧
+
+/bookings/:id … 宿泊者詳細
+
+/devices … デバイス制御
+
+/alerts … アラート一覧
+
+9.2 テーマ（Tailwind例）
+// ebi-pink.css variables (使い回し用)
+:root {
+  --accent: #F6C6D0; /* 白えびピンク */
+  --text: #333333;
+}
+
+10. セキュリティ/プライバシー
+
+**個人情報（免許証・顔写真）**は暗号化保管（サーバ側でAES、鍵は環境変数/Secret Manager）。
+
+アクセス権限：オーナー（夫/妻）のみ。二要素認証推奨。
+
+保管期間：法令・約款に合わせ、不要データは自動削除（例：チェックアウト後30日）。
+
+同意取得：予約時に顔写真/免許証アップロード・入退室記録取得に対する同意文を明示。
+
+11. 運用・デプロイ
+
+Replit：開発用。FastAPIとReactを同一リポジトリで管理。
+
+本番：VPSやAWS（ALB + ECS/Fargate + RDS/PostgreSQL）へ移行し、TLS・WAF・監査ログ集約（CloudWatch/S3）を実施。
+
+バックアップ：DBの自動スナップショット、監査ログはWORMストレージへ。
+
+12. .env.example（サンプル）
+# API
+ADMIN_USERNAME=owner
+ADMIN_PASSWORD=change-me
+
+# Mail
+SENDGRID_API_KEY=SG.xxxxx
+MAIL_FROM=noreply@example.com
+
+# Telephony
+TWILIO_SID=ACxxxxxxxx
+TWILIO_TOKEN=xxxxxxxx
+TWILIO_FROM=+81xxxxxxxx
+
+# SwitchBot
+SWITCHBOT_TOKEN=xxxxxxxx
+SWITCHBOT_SECRET=xxxxxxxx
+SWITCHBOT_DEVICE_ID_LOCK=xxxxx
+SWITCHBOT_DEVICE_ID_BREAKER=xxxxx
+
+13. ダミーデータ（初期投入）
+13.1 guests.json
+[
+  { "id": 1, "full_name": "山田 太郎", "age": 42, "license_image_url": "/mock/license_yamada.png", "face_image_url": "/mock/face_yamada.jpg", "phone": "090-1111-2222", "email": "taro@example.com" },
+  { "id": 2, "full_name": "佐藤 花子", "age": 39, "license_image_url": "/mock/license_sato.png", "face_image_url": "/mock/face_sato.jpg", "phone": "090-3333-4444", "email": "hanako@example.com" }
+]
+
+13.2 rooms.json
+[
+  { "id": 1, "name": "猟師町の家（母屋）", "address": "富山県〇〇市猟師町1-2-3", "notes": "景観保全のため外装改変不可" },
+  { "id": 2, "name": "長屋一号室", "address": "富山県〇〇市猟師町長屋 1-1", "notes": "騒音注意" }
+]
+
+13.3 bookings.json
+[
+  { "id": 101, "guest_id": 1, "room_id": 1, "reserved_at": "2025-10-20T15:00:00+09:00", "reserved_count": 4, "status": "booked" },
+  { "id": 102, "guest_id": 2, "room_id": 2, "reserved_at": "2025-10-21T16:00:00+09:00", "reserved_count": 2, "status": "checked_in" }
+]
+
+13.4 entry_events.json（人数推移ダミー）
+[
+  { "id": 5001, "booking_id": 101, "timestamp": "2025-10-20T15:05:00+09:00", "event_type": "enter", "people_count": 2 },
+  { "id": 5002, "booking_id": 101, "timestamp": "2025-10-20T15:12:00+09:00", "event_type": "enter", "people_count": 4 },
+  { "id": 5003, "booking_id": 101, "timestamp": "2025-10-20T19:10:00+09:00", "event_type": "enter", "people_count": 5 } 
+]
+
+13.5 alerts.json（差分アラート例）
+[
+  { "id": 9001, "booking_id": 101, "detected_at": "2025-10-20T19:10:10+09:00", "reserved_count": 4, "actual_count": 5, "status": "open" }
+]
+
+14. 実装ガイド（最短動作手順）
+
+ReplitでPython + Nodeのマルチ環境テンプレを選択（なければ別々リポでも可）。
+
+バックエンド（FastAPI）
+
+主要エンドポイント：/bookings, /bookings/{id}, /webhooks/entry, /devices/{id}/command, /alerts, /auth/login
+
+SQLite 初期化スクリプトでテーブル作成→ダミーデータ投入。
+
+フロント（React + Vite）
+
+ルータ設定・テーマ（白えびピンク）反映。
+
+一覧・詳細・連絡・制御の各ページを作成。
+
+.env を設定し、メール・電話・SwitchBotを疎通（開発時はモック実装でOK）。
+
+Webhook用の簡易POSTツール（cURLやREST Client）で/webhooks/entryにPOSTし、差分アラート生成を確認。
+
+15. 注意事項・拡張
+
+法令順守：旅館業法/住宅宿泊事業法、本人確認、同意管理、保存期間、開示・削除請求フローを明文化。
+
+多物件対応：roomsに施設を増やせば複数管理可能。
+
+AI高度化：
+
+顔認証は最小限（同意必須）。まずは人数カウントのみから開始。
+
+不正検知（連続入室・夜間出入り異常）をルール→機械学習へ段階的に拡張。
+
+UI/導線：到着予定時刻±1時間の入退室を強調表示し、未対応アラートを最上位に。
+
+16. 完了の定義（PoC）
+
+予約作成→Webhookで人数イベント受信→差分アラート生成→UIで可視化→鍵/電源の操作が通る
+
+宿泊者詳細で免許証・顔写真・連絡履歴が見える
+
+メール/電話の到達（またはモック）ログが監査に残る
