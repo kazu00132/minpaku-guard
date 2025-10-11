@@ -65,7 +65,8 @@ export default function Demo() {
         throw new Error("顔照合に失敗しました");
       }
 
-      return response.json();
+      const data = await response.json();
+      return data as VerificationResult;
     },
     onSuccess: (data: VerificationResult) => {
       setVerificationResult(data);
