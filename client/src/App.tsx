@@ -10,6 +10,7 @@ import Dashboard from "@/pages/Dashboard";
 import Bookings from "@/pages/Bookings";
 import Alerts from "@/pages/Alerts";
 import Devices from "@/pages/Devices";
+import Demo from "@/pages/Demo";
 import GuestDetail from "@/pages/GuestDetail";
 import NotFound from "@/pages/not-found";
 
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/bookings/:id" component={GuestDetail} />
       <Route path="/alerts" component={Alerts} />
       <Route path="/devices" component={Devices} />
+      <Route path="/demo" component={Demo} />
       <Route component={NotFound} />
     </Switch>
   );

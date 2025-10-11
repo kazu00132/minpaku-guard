@@ -1,4 +1,4 @@
-import { Home, Users, AlertTriangle, Lock, Settings } from "lucide-react";
+import { Home, Users, AlertTriangle, Lock, Settings, TestTube } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -31,6 +31,11 @@ const menuItems = [
     title: "デバイス制御",
     url: "/devices",
     icon: Lock,
+  },
+  {
+    title: "デモ",
+    url: "/demo",
+    icon: TestTube,
   },
   {
     title: "設定",
