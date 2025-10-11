@@ -1,6 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Eye, Phone, Mail } from "lucide-react";
 import { format } from "date-fns";
 
@@ -12,6 +13,7 @@ export interface Booking {
   actualCount: number | null;
   status: "booked" | "checked_in" | "checked_out";
   roomName: string;
+  faceImageUrl?: string | null;
 }
 
 interface BookingsTableProps {
@@ -57,8 +59,14 @@ export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail
               <TableCell className="font-mono text-sm" data-testid={`text-reserved-at-${booking.id}`}>
                 {format(new Date(booking.reservedAt), "yyyy-MM-dd HH:mm")}
               </TableCell>
-              <TableCell className="font-medium" data-testid={`text-guest-name-${booking.id}`}>
-                {booking.guestName}
+              <TableCell data-testid={`text-guest-name-${booking.id}`}>
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={booking.faceImageUrl || undefined} />
+                    <AvatarFallback className="text-xs">{booking.guestName.slice(0, 2)}</AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium">{booking.guestName}</span>
+                </div>
               </TableCell>
               <TableCell data-testid={`text-room-${booking.id}`}>{booking.roomName}</TableCell>
               <TableCell className="text-center" data-testid={`text-reserved-count-${booking.id}`}>

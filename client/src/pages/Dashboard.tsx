@@ -12,7 +12,8 @@ export default function Dashboard() {
       reservedCount: 4,
       actualCount: 6,
       status: "checked_in" as const,
-      roomName: "漁師の家"
+      roomName: "漁師の家",
+      faceImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=YamadaTaro"
     },
     {
       id: 2,
@@ -21,7 +22,8 @@ export default function Dashboard() {
       reservedCount: 2,
       actualCount: 2,
       status: "checked_in" as const,
-      roomName: "長屋 A"
+      roomName: "長屋 A",
+      faceImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=SatoHanako"
     },
     {
       id: 3,
@@ -30,7 +32,8 @@ export default function Dashboard() {
       reservedCount: 3,
       actualCount: null,
       status: "booked" as const,
-      roomName: "長屋 B"
+      roomName: "長屋 B",
+      faceImageUrl: null
     }
   ];
 
