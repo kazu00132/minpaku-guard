@@ -1,0 +1,91 @@
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Eye } from "lucide-react";
+import { format } from "date-fns";
+
+export interface Booking {
+  id: number;
+  guestName: string;
+  reservedAt: string;
+  reservedCount: number;
+  actualCount: number | null;
+  status: "booked" | "checked_in" | "checked_out";
+  roomName: string;
+}
+
+interface BookingsTableProps {
+  bookings: Booking[];
+  onViewDetails?: (id: number) => void;
+}
+
+export default function BookingsTable({ bookings, onViewDetails }: BookingsTableProps) {
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "checked_in":
+        return <Badge variant="default" data-testid={`badge-status-checked_in`}>入室中</Badge>;
+      case "checked_out":
+        return <Badge variant="secondary" data-testid={`badge-status-checked_out`}>チェックアウト</Badge>;
+      default:
+        return <Badge variant="outline" data-testid={`badge-status-booked`}>未入室</Badge>;
+    }
+  };
+
+  const hasDiscrepancy = (booking: Booking) => {
+    return booking.actualCount !== null && booking.actualCount > booking.reservedCount;
+  };
+
+  return (
+    <div className="border rounded-md">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>予約日時</TableHead>
+            <TableHead>氏名</TableHead>
+            <TableHead>部屋</TableHead>
+            <TableHead className="text-center">予約人数</TableHead>
+            <TableHead className="text-center">実人数</TableHead>
+            <TableHead>状態</TableHead>
+            <TableHead className="text-right">操作</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {bookings.map((booking) => (
+            <TableRow key={booking.id} data-testid={`row-booking-${booking.id}`}>
+              <TableCell className="font-mono text-sm" data-testid={`text-reserved-at-${booking.id}`}>
+                {format(new Date(booking.reservedAt), "yyyy-MM-dd HH:mm")}
+              </TableCell>
+              <TableCell className="font-medium" data-testid={`text-guest-name-${booking.id}`}>
+                {booking.guestName}
+              </TableCell>
+              <TableCell data-testid={`text-room-${booking.id}`}>{booking.roomName}</TableCell>
+              <TableCell className="text-center" data-testid={`text-reserved-count-${booking.id}`}>
+                {booking.reservedCount}
+              </TableCell>
+              <TableCell className="text-center" data-testid={`text-actual-count-${booking.id}`}>
+                {booking.actualCount !== null ? (
+                  <span className={hasDiscrepancy(booking) ? "text-amber-500 font-semibold" : ""}>
+                    {booking.actualCount}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </TableCell>
+              <TableCell>{getStatusBadge(booking.status)}</TableCell>
+              <TableCell className="text-right">
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={() => onViewDetails?.(booking.id)}
+                  data-testid={`button-view-${booking.id}`}
+                >
+                  <Eye className="w-4 h-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
