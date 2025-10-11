@@ -13,7 +13,19 @@ const upload = multer({
       const uniqueSuffix = `${Date.now()}_${Math.round(Math.random() * 1E9)}`;
       cb(null, `upload_${uniqueSuffix}${path.extname(file.originalname)}`);
     }
-  })
+  }),
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB max file size
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow images for face verification and videos for processing
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'video/mp4', 'video/quicktime', 'video/x-msvideo'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only images and videos are allowed.'));
+    }
+  }
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
