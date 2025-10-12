@@ -12,6 +12,7 @@ export interface IStorage {
   // Guests
   getGuest(id: string): Promise<Guest | undefined>;
   createGuest(guest: InsertGuest): Promise<Guest>;
+  updateGuest(id: string, updates: Partial<InsertGuest>): Promise<Guest | undefined>;
 
   // Rooms
   getRoom(id: string): Promise<Room | undefined>;
@@ -105,6 +106,23 @@ export class MemStorage implements IStorage {
     };
     this.guests.set(id, guest);
     return guest;
+  }
+
+  async updateGuest(id: string, updates: Partial<InsertGuest>): Promise<Guest | undefined> {
+    const existing = this.guests.get(id);
+    if (!existing) return undefined;
+
+    const updated: Guest = { 
+      ...existing,
+      fullName: updates.fullName ?? existing.fullName,
+      age: updates.age !== undefined ? (updates.age ?? null) : existing.age,
+      licenseImageUrl: updates.licenseImageUrl !== undefined ? (updates.licenseImageUrl ?? null) : existing.licenseImageUrl,
+      faceImageUrl: updates.faceImageUrl !== undefined ? (updates.faceImageUrl ?? null) : existing.faceImageUrl,
+      phone: updates.phone !== undefined ? (updates.phone ?? null) : existing.phone,
+      email: updates.email !== undefined ? (updates.email ?? null) : existing.email,
+    };
+    this.guests.set(id, updated);
+    return updated;
   }
 
   // Room operations
