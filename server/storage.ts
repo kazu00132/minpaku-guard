@@ -64,7 +64,7 @@ export class MemStorage implements IStorage {
       actualCount: 6,
       status: "checked_in",
       roomName: "漁師町の民家",
-      faceImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Tanaka"
+      faceImageUrl: "/attached_assets/顔写真_1760238824095.jpg"
     });
     this.bookings.set(2, {
       id: 2,
