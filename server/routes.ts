@@ -216,18 +216,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Demo: Process video - extract frames and count people
   app.post("/api/demo/process-video", upload.single("video"), async (req, res) => {
     try {
-      const { reservedCount } = req.body;
+      const { bookingId } = req.body;
       const video = req.file;
 
       if (!video) {
         return res.status(400).json({ error: "動画ファイルが必要です" });
       }
 
-      if (!reservedCount) {
-        return res.status(400).json({ error: "予約人数が必要です" });
+      if (!bookingId) {
+        return res.status(400).json({ error: "予約IDが必要です" });
       }
 
-      const reserved = parseInt(reservedCount, 10);
+      // Get booking data to ensure we use canonical reserved count
+      const bookingIdNum = parseInt(bookingId, 10);
+      const booking = await storage.getBooking(bookingIdNum);
+
+      if (!booking) {
+        return res.status(404).json({ error: "予約が見つかりません" });
+      }
+
+      const reserved = booking.reservedCount;
 
       // Extract frames from video
       const frames = await extractFramesFromVideo(video.buffer);
@@ -250,11 +258,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const detectedCount = frameCounts.length > 0 ? Math.max(...frameCounts) : 0;
       console.log(`Maximum detected count: ${detectedCount}`);
 
-      // Compare with reserved count
+      // Compare with reserved count (from booking, not from request)
       const status = detectedCount > reserved ? "error" : "normal";
       const message = detectedCount > reserved
         ? `警告: 予約人数(${reserved}人)より多い${detectedCount}人を検出しました`
         : `正常: 検出人数(${detectedCount}人)は予約人数(${reserved}人)以内です`;
+
+      // Create alert if discrepancy detected
+      let alertId: number | undefined;
+      if (detectedCount > reserved) {
+        const alert = await storage.createAlert({
+          bookingId: bookingIdNum,
+          guestName: booking.guestName,
+          roomName: booking.roomName,
+          detectedAt: new Date().toISOString(),
+          reservedCount: booking.reservedCount,
+          actualCount: detectedCount,
+          status: "open"
+        });
+        alertId = alert.id;
+        console.log(`Alert created: ID ${alert.id} for booking ${bookingIdNum}`);
+      }
 
       res.json({
         success: true,
@@ -264,6 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         frameCounts,
         status,
         message,
+        alertId,
         frames: frames.map((f, i) => ({ 
           index: i + 1, 
           peopleCount: frameCounts[i],

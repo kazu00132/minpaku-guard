@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { Booking } from "@/components/BookingsTable";
 
 interface VerificationResult {
   isMatch: boolean;
@@ -35,6 +36,7 @@ interface VideoProcessResponse {
   frameCounts: number[];
   status: "error" | "normal";
   message: string;
+  alertId?: number;
   frames: FrameResult[];
 }
 
@@ -65,10 +67,9 @@ export default function Demo() {
     { id: "3", name: "山田次郎", faceImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=yamada" },
   ];
 
-  const mockBookings = [
-    { id: "1", guestName: "田中太郎", reservedCount: 4, roomName: "民家" },
-    { id: "2", guestName: "佐藤花子", reservedCount: 2, roomName: "長屋" },
-  ];
+  const { data: bookings = [] } = useQuery<Booking[]>({
+    queryKey: ["/api/bookings"],
+  });
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -171,14 +172,9 @@ export default function Demo() {
         throw new Error("動画と予約を選択してください");
       }
 
-      const booking = mockBookings.find(b => b.id === selectedBooking);
-      if (!booking) {
-        throw new Error("予約が見つかりません");
-      }
-
       const formData = new FormData();
       formData.append("video", selectedVideo);
-      formData.append("reservedCount", booking.reservedCount.toString());
+      formData.append("bookingId", selectedBooking);
 
       const response = await fetch("/api/demo/process-video", {
         method: "POST",
@@ -194,9 +190,17 @@ export default function Demo() {
     },
     onSuccess: (data: VideoProcessResponse) => {
       setVideoProcessResult(data);
+      
+      // Invalidate alerts query if alert was created
+      if (data.alertId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
+      }
+      
       toast({
-        title: data.status === "error" ? "差分検知" : "処理完了",
-        description: data.message,
+        title: data.status === "error" ? "差分検知・アラート作成" : "処理完了",
+        description: data.alertId 
+          ? `${data.message}\nアラートID: ${data.alertId}を作成しました`
+          : data.message,
         variant: data.status === "error" ? "destructive" : "default",
       });
     },
@@ -478,8 +482,8 @@ export default function Demo() {
                       <SelectValue placeholder="予約を選択" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockBookings.map((booking) => (
-                        <SelectItem key={booking.id} value={booking.id}>
+                      {bookings.map((booking) => (
+                        <SelectItem key={booking.id} value={booking.id.toString()}>
                           {booking.guestName} - {booking.roomName} ({booking.reservedCount}名)
                         </SelectItem>
                       ))}

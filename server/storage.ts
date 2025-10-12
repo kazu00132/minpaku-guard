@@ -41,6 +41,7 @@ export interface IStorage {
   // Alert methods
   getAlerts(): Promise<AlertData[]>;
   getAlert(id: number): Promise<AlertData | undefined>;
+  createAlert(data: Omit<AlertData, 'id'>): Promise<AlertData>;
   updateAlertStatus(id: number, status: "open" | "acknowledged" | "resolved"): Promise<AlertData | undefined>;
 }
 
@@ -161,6 +162,13 @@ export class MemStorage implements IStorage {
 
   async getAlert(id: number): Promise<AlertData | undefined> {
     return this.alerts.get(id);
+  }
+
+  async createAlert(data: Omit<AlertData, 'id'>): Promise<AlertData> {
+    const id = Math.max(...Array.from(this.alerts.keys()), 0) + 1;
+    const alert: AlertData = { ...data, id };
+    this.alerts.set(id, alert);
+    return alert;
   }
 
   async updateAlertStatus(id: number, status: "open" | "acknowledged" | "resolved"): Promise<AlertData | undefined> {
