@@ -7,6 +7,7 @@ import fs from "fs/promises";
 import path from "path";
 import { insertBookingSchema, insertGuestSchema } from "@shared/schema";
 import { z } from "zod";
+import { countPeopleInImage } from "./openai";
 
 const upload = multer({ 
   storage: multer.diskStorage({
@@ -163,28 +164,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const files = await fs.readdir(tempDir);
       const frameFiles = files.filter(f => f.startsWith("frame_")).sort();
 
-      // Process each frame
+      // Process each frame using OpenAI Vision API
       const results = [];
       for (let i = 0; i < frameFiles.length; i++) {
         const timestamp = `${i * 10}秒`;
         
-        // Mock person detection
-        // TODO: Replace with actual Dify API call
-        // In production, send each frame to Dify:
-        // const frameBuffer = await fs.readFile(path.join(tempDir, frameFiles[i]));
-        // const difyResponse = await fetch(process.env.DIFY_VISION_URL, {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({
-        //     image: frameBuffer.toString('base64'),
-        //     reserved_count: booking.reservedCount
-        //   })
-        // });
+        // Read frame and convert to base64
+        const framePath = path.join(tempDir, frameFiles[i]);
+        const frameBuffer = await fs.readFile(framePath);
+        const base64Image = frameBuffer.toString('base64');
 
-        // Mock detected count (randomize between reserved -1 to +2)
-        const variance = Math.floor(Math.random() * 4) - 1;
-        const detectedCount = Math.max(0, booking.reservedCount + variance);
-        const confidence = Math.random() * 0.2 + 0.8; // 80-100%
+        // Use OpenAI Vision API to count people
+        const visionResult = await countPeopleInImage(base64Image);
+        const detectedCount = visionResult.count;
+        const confidence = visionResult.confidence;
         const hasDiscrepancy = detectedCount !== booking.reservedCount;
 
         results.push({
@@ -192,6 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           detectedCount,
           hasDiscrepancy,
           confidence,
+          description: visionResult.description,
         });
       }
 

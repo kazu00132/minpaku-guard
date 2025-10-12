@@ -26,6 +26,7 @@ interface VideoProcessResult {
   detectedCount: number;
   hasDiscrepancy: boolean;
   confidence: number;
+  description?: string;
 }
 
 interface VideoProcessResponse {
@@ -497,6 +498,11 @@ export default function Demo() {
                           <div className="text-xs text-muted-foreground mt-1">
                             信頼度: {(result.confidence * 100).toFixed(1)}%
                           </div>
+                          {result.description && (
+                            <div className="text-xs text-muted-foreground mt-2">
+                              {result.description}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
