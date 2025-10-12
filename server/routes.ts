@@ -118,6 +118,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       uploadedVideoPath = video.path;
 
+      // Validate video file
+      const validMimeTypes = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/webm"];
+      if (!validMimeTypes.includes(video.mimetype)) {
+        return res.status(400).json({ 
+          error: "サポートされていない動画形式です。MP4、MOV、AVI、WEBMのいずれかを使用してください。" 
+        });
+      }
+
+      // Check file size (max 100MB)
+      const maxSize = 100 * 1024 * 1024;
+      if (video.size > maxSize) {
+        return res.status(400).json({ error: "動画ファイルは100MB以下である必要があります" });
+      }
+
       // Mock booking data
       const mockBookings: Record<string, { guestName: string; roomName: string; reservedCount: number }> = {
         "1": { guestName: "田中太郎", roomName: "民家", reservedCount: 4 },
@@ -156,7 +170,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             resolve();
           } else {
             console.error("[Video Processing] ffmpeg failed with code", code, ":", stderr);
-            reject(new Error(`ffmpeg failed with code ${code}: ${stderr}`));
+            const errorMsg = stderr.includes("Invalid data") 
+              ? "動画ファイルが破損しているか、サポートされていない形式です"
+              : stderr.includes("No such file") 
+              ? "動画ファイルが見つかりません"
+              : "動画ファイルの処理中にエラーが発生しました";
+            reject(new Error(errorMsg));
           }
         });
 
@@ -202,29 +221,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log("[Video Processing] All frames processed");
-
-      // Determine overall discrepancy status
-      const hasOverallDiscrepancy = results.some(r => r.hasDiscrepancy);
-      const detectedCounts = results.map(r => r.detectedCount);
-      const mostFrequentCount = detectedCounts.sort((a, b) =>
-        detectedCounts.filter(c => c === a).length - detectedCounts.filter(c => c === b).length
-      ).pop() || 0;
-
-      // Trigger Dify workflow
-      let difyResponse = null;
-      console.log("[Video Processing] Calling Dify workflow, hasDiscrepancy:", hasOverallDiscrepancy);
-      
-      try {
-        difyResponse = await triggerDifyWorkflow(
-          hasOverallDiscrepancy,
-          booking.reservedCount,
-          mostFrequentCount,
-          `${booking.guestName} - ${booking.roomName}`
-        );
-        console.log("[Video Processing] Dify workflow success, ID:", difyResponse.workflow_run_id);
-      } catch (difyError) {
-        console.error("[Video Processing] Dify workflow error:", difyError);
-      }
 
       // Clean up temp directory and uploaded video
       await fs.rm(tempDir, { recursive: true, force: true });
