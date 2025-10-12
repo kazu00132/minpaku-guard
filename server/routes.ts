@@ -131,9 +131,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create temp directory for frames
       await fs.mkdir(tempDir, { recursive: true });
+      console.log("[Video Processing] Temp directory created:", tempDir);
 
       // Extract frames every 10 seconds using ffmpeg with spawn to avoid buffer overflow
       const framesPattern = path.join(tempDir, "frame_%03d.jpg");
+      console.log("[Video Processing] Starting frame extraction with ffmpeg...");
       
       await new Promise<void>((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
@@ -150,13 +152,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         ffmpeg.on("close", (code) => {
           if (code === 0) {
+            console.log("[Video Processing] ffmpeg extraction completed successfully");
             resolve();
           } else {
+            console.error("[Video Processing] ffmpeg failed with code", code, ":", stderr);
             reject(new Error(`ffmpeg failed with code ${code}: ${stderr}`));
           }
         });
 
         ffmpeg.on("error", (err) => {
+          console.error("[Video Processing] ffmpeg error:", err);
           reject(err);
         });
       });
@@ -164,6 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get list of extracted frames
       const files = await fs.readdir(tempDir);
       const frameFiles = files.filter(f => f.startsWith("frame_")).sort();
+      console.log("[Video Processing] Extracted", frameFiles.length, "frames");
 
       // Process each frame using OpenAI Vision API
       const results = [];
