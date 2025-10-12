@@ -29,11 +29,19 @@ interface VideoProcessResult {
   description?: string;
 }
 
+interface DifyResult {
+  workflowRunId: string;
+  status: string;
+  outputs: any;
+  error?: string;
+}
+
 interface VideoProcessResponse {
   success: boolean;
   results: VideoProcessResult[];
   bookingName: string;
   reservedCount: number;
+  difyResult?: DifyResult | null;
 }
 
 export default function Demo() {
@@ -474,6 +482,35 @@ export default function Demo() {
                         </p>
                       </div>
                     </div>
+
+                    {videoProcessResult.difyResult && (
+                      <div className="p-4 rounded-lg border bg-card space-y-2">
+                        <h3 className="font-semibold">Difyワークフロー結果</h3>
+                        <div className="text-sm space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">ワークフローID:</span>
+                            <span className="font-mono text-xs">{videoProcessResult.difyResult.workflowRunId}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">ステータス:</span>
+                            <span>{videoProcessResult.difyResult.status}</span>
+                          </div>
+                          {videoProcessResult.difyResult.outputs && (
+                            <div className="mt-2">
+                              <span className="text-muted-foreground">出力:</span>
+                              <pre className="bg-secondary p-2 rounded mt-1 text-xs overflow-auto max-h-32">
+                                {JSON.stringify(videoProcessResult.difyResult.outputs, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                          {videoProcessResult.difyResult.error && (
+                            <div className="text-destructive text-sm mt-2">
+                              エラー: {videoProcessResult.difyResult.error}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {videoProcessResult.results.map((result, index) => (
