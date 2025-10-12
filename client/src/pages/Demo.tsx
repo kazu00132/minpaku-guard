@@ -41,7 +41,13 @@ interface VideoProcessResponse {
   results: VideoProcessResult[];
   bookingName: string;
   reservedCount: number;
-  difyResult?: DifyResult | null;
+  hasOverallDiscrepancy: boolean;
+  mostFrequentCount: number;
+}
+
+interface SendToDifyResponse {
+  success: boolean;
+  difyResult: DifyResult;
 }
 
 export default function Demo() {
@@ -56,6 +62,7 @@ export default function Demo() {
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string>("");
   const [selectedBooking, setSelectedBooking] = useState<string>("");
   const [videoProcessResult, setVideoProcessResult] = useState<VideoProcessResponse | null>(null);
+  const [difyResult, setDifyResult] = useState<DifyResult | null>(null);
   
   const { toast } = useToast();
 
@@ -201,6 +208,7 @@ export default function Demo() {
     onSuccess: (data: VideoProcessResponse) => {
       console.log("[Video Process] onSuccess called with data:", data);
       setVideoProcessResult(data);
+      setDifyResult(null); // Reset Dify result when new video is processed
       const hasDiscrepancy = data.results.some(r => r.hasDiscrepancy);
       toast({
         title: hasDiscrepancy ? "差分検知" : "処理完了",
@@ -214,6 +222,41 @@ export default function Demo() {
       console.error("[Video Process] onError called:", error);
       toast({
         title: "エラー",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const sendToDifyMutation = useMutation({
+    mutationFn: async () => {
+      if (!videoProcessResult) {
+        throw new Error("先に動画処理を実行してください");
+      }
+
+      const response = await apiRequest(
+        "POST",
+        "/api/demo/send-to-dify",
+        {
+          hasDiscrepancy: videoProcessResult.hasOverallDiscrepancy,
+          reservedCount: videoProcessResult.reservedCount,
+          detectedCount: videoProcessResult.mostFrequentCount,
+          bookingName: videoProcessResult.bookingName,
+        }
+      );
+
+      return response.json() as Promise<SendToDifyResponse>;
+    },
+    onSuccess: (data: SendToDifyResponse) => {
+      setDifyResult(data.difyResult);
+      toast({
+        title: "Difyワークフロー送信成功",
+        description: "判定結果をDifyワークフローに送信しました",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Difyワークフロー送信失敗",
         description: error.message,
         variant: "destructive",
       });
@@ -393,7 +436,7 @@ export default function Demo() {
             <Card>
               <CardHeader>
                 <CardTitle>動画アップロード</CardTitle>
-                <CardDescription>動画から10秒ごとに人数をカウントします</CardDescription>
+                <CardDescription>動画から5秒ごとに人数をカウントします</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -479,7 +522,7 @@ export default function Demo() {
             <Card>
               <CardHeader>
                 <CardTitle>人数カウント結果</CardTitle>
-                <CardDescription>10秒ごとの人数判定結果を表示します</CardDescription>
+                <CardDescription>5秒ごとの人数判定結果を表示します</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {videoProcessResult ? (
@@ -496,29 +539,38 @@ export default function Demo() {
                       </div>
                     </div>
 
-                    {videoProcessResult.difyResult && (
+                    <Button
+                      onClick={() => sendToDifyMutation.mutate()}
+                      disabled={sendToDifyMutation.isPending}
+                      className="w-full"
+                      data-testid="button-send-to-dify"
+                    >
+                      {sendToDifyMutation.isPending ? "送信中..." : "Difyワークフローへ送信"}
+                    </Button>
+
+                    {difyResult && (
                       <div className="p-4 rounded-lg border bg-card space-y-2">
                         <h3 className="font-semibold">Difyワークフロー結果</h3>
                         <div className="text-sm space-y-1">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">ワークフローID:</span>
-                            <span className="font-mono text-xs">{videoProcessResult.difyResult.workflowRunId}</span>
+                            <span className="font-mono text-xs">{difyResult.workflowRunId}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">ステータス:</span>
-                            <span>{videoProcessResult.difyResult.status}</span>
+                            <span>{difyResult.status}</span>
                           </div>
-                          {videoProcessResult.difyResult.outputs && (
+                          {difyResult.outputs && (
                             <div className="mt-2">
                               <span className="text-muted-foreground">出力:</span>
                               <pre className="bg-secondary p-2 rounded mt-1 text-xs overflow-auto max-h-32">
-                                {JSON.stringify(videoProcessResult.difyResult.outputs, null, 2)}
+                                {JSON.stringify(difyResult.outputs, null, 2)}
                               </pre>
                             </div>
                           )}
-                          {videoProcessResult.difyResult.error && (
+                          {difyResult.error && (
                             <div className="text-destructive text-sm mt-2">
-                              エラー: {videoProcessResult.difyResult.error}
+                              エラー: {difyResult.error}
                             </div>
                           )}
                         </div>

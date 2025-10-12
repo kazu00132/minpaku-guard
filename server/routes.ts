@@ -103,6 +103,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Demo: Send video processing results to Dify workflow
+  app.post("/api/demo/send-to-dify", async (req, res) => {
+    try {
+      const { hasDiscrepancy, reservedCount, detectedCount, bookingName } = req.body;
+
+      if (hasDiscrepancy === undefined || typeof reservedCount !== 'number' || typeof detectedCount !== 'number' || !bookingName) {
+        return res.status(400).json({ error: "必要なパラメータが不足しています" });
+      }
+
+      console.log("[Send to Dify] Triggering Dify workflow with video results...");
+      
+      // Trigger Dify workflow
+      const difyResponse = await triggerDifyWorkflow(
+        hasDiscrepancy,
+        reservedCount,
+        detectedCount,
+        bookingName
+      );
+
+      console.log("[Send to Dify] Dify workflow triggered successfully");
+
+      res.json({
+        success: true,
+        difyResult: {
+          workflowRunId: difyResponse.workflow_run_id,
+          status: difyResponse.data.status,
+          outputs: difyResponse.data.outputs,
+          error: difyResponse.data.error,
+        },
+      });
+    } catch (error) {
+      console.error("Send to Dify error:", error);
+      res.status(500).json({ error: "Difyワークフロー送信に失敗しました: " + (error instanceof Error ? error.message : String(error)) });
+    }
+  });
+
   // Demo: Process video and extract frames
   app.post("/api/demo/process-video", upload.single("video"), async (req, res) => {
     const tempDir = path.join("/tmp", `video_${Date.now()}`);
@@ -147,14 +183,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await fs.mkdir(tempDir, { recursive: true });
       console.log("[Video Processing] Temp directory created:", tempDir);
 
-      // Extract frames every 10 seconds using ffmpeg with spawn to avoid buffer overflow
+      // Extract frames every 5 seconds using ffmpeg with spawn to avoid buffer overflow
       const framesPattern = path.join(tempDir, "frame_%03d.jpg");
       console.log("[Video Processing] Starting frame extraction with ffmpeg...");
       
       await new Promise<void>((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
           "-i", video.path,
-          "-vf", "fps=1/10",
+          "-vf", "fps=1/5",
           framesPattern
         ]);
 
@@ -195,7 +231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("[Video Processing] Processing", frameFiles.length, "frames with OpenAI Vision API");
       
       for (let i = 0; i < frameFiles.length; i++) {
-        const timestamp = `${i * 10}秒`;
+        const timestamp = `${i * 5}秒`;
         console.log(`[Video Processing] Frame ${i + 1}/${frameFiles.length} at ${timestamp}`);
         
         // Read frame and convert to base64
@@ -231,21 +267,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[Video Processing] Overall discrepancy: ${hasOverallDiscrepancy} (reserved: ${booking.reservedCount}, detected: ${mostFrequentCount})`);
 
-      // Trigger Dify workflow
-      let difyResponse = null;
-      try {
-        console.log("[Video Processing] Calling Dify workflow...");
-        difyResponse = await triggerDifyWorkflow(
-          hasOverallDiscrepancy,
-          booking.reservedCount,
-          mostFrequentCount,
-          `${booking.guestName} - ${booking.roomName}`
-        );
-        console.log("[Video Processing] Dify workflow triggered successfully");
-      } catch (difyError) {
-        console.error("[Video Processing] Dify workflow error:", difyError);
-      }
-
       // Clean up temp directory and uploaded video
       await fs.rm(tempDir, { recursive: true, force: true });
       if (uploadedVideoPath) {
@@ -258,12 +279,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         results,
         bookingName: `${booking.guestName} - ${booking.roomName}`,
         reservedCount: booking.reservedCount,
-        difyResult: difyResponse ? {
-          workflowRunId: difyResponse.workflow_run_id,
-          status: difyResponse.data.status,
-          outputs: difyResponse.data.outputs,
-          error: difyResponse.data.error,
-        } : null,
+        hasOverallDiscrepancy,
+        mostFrequentCount,
       };
       
       console.log("[Video Processing] Response ready");
