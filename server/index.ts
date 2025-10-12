@@ -40,18 +40,11 @@ app.use((req, res, next) => {
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    // Handle Multer-specific errors
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).json({ error: 'ファイルサイズが大きすぎます（最大100MB）' });
-    }
-    if (err.message && err.message.includes('Invalid file type')) {
-      return res.status(400).json({ error: err.message });
-    }
-
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    return res.status(status).json({ message });
+    res.status(status).json({ message });
+    throw err;
   });
 
   // importantly only setup vite in development and after

@@ -2,31 +2,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Eye, Phone, Mail, Pencil, Trash2 } from "lucide-react";
+import { Eye, Phone, Mail } from "lucide-react";
 import { format } from "date-fns";
 
 export interface Booking {
-  id: string;
+  id: number;
   guestName: string;
   reservedAt: string;
   reservedCount: number;
   actualCount: number | null;
   status: "booked" | "checked_in" | "checked_out";
   roomName: string;
-  roomId: string;
   faceImageUrl?: string | null;
 }
 
 interface BookingsTableProps {
   bookings: Booking[];
-  onViewDetails?: (id: string) => void;
-  onCall?: (id: string) => void;
-  onEmail?: (id: string) => void;
-  onEdit?: (booking: Booking) => void;
-  onDelete?: (booking: Booking) => void;
+  onViewDetails?: (id: number) => void;
+  onCall?: (id: number) => void;
+  onEmail?: (id: number) => void;
 }
 
-export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail, onEdit, onDelete }: BookingsTableProps) {
+export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail }: BookingsTableProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "checked_in":
@@ -87,22 +84,6 @@ export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail
               <TableCell>{getStatusBadge(booking.status)}</TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => onEdit?.(booking)}
-                    data-testid={`button-edit-${booking.id}`}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => onDelete?.(booking)}
-                    data-testid={`button-delete-${booking.id}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
                   <Button 
                     size="sm" 
                     variant="ghost"
