@@ -13,6 +13,18 @@ export interface BookingData {
   faceImageUrl?: string | null;
 }
 
+// Alert type for in-memory storage
+export interface AlertData {
+  id: number;
+  bookingId: number;
+  guestName: string;
+  roomName: string;
+  detectedAt: string;
+  reservedCount: number;
+  actualCount: number;
+  status: "open" | "acknowledged" | "resolved";
+}
+
 // modify the interface with any CRUD methods
 // you might need
 
@@ -25,15 +37,22 @@ export interface IStorage {
   getBookings(): Promise<BookingData[]>;
   getBooking(id: number): Promise<BookingData | undefined>;
   updateBooking(id: number, data: Partial<Omit<BookingData, 'id'>>): Promise<BookingData | undefined>;
+  
+  // Alert methods
+  getAlerts(): Promise<AlertData[]>;
+  getAlert(id: number): Promise<AlertData | undefined>;
+  updateAlertStatus(id: number, status: "open" | "acknowledged" | "resolved"): Promise<AlertData | undefined>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private bookings: Map<number, BookingData>;
+  private alerts: Map<number, AlertData>;
 
   constructor() {
     this.users = new Map();
     this.bookings = new Map();
+    this.alerts = new Map();
     
     // Initialize with mock bookings
     this.bookings.set(1, {
@@ -65,6 +84,38 @@ export class MemStorage implements IStorage {
       status: "checked_in",
       roomName: "漁師町の民家",
       faceImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Yamada"
+    });
+    
+    // Initialize with mock alerts
+    this.alerts.set(1, {
+      id: 1,
+      bookingId: 1,
+      guestName: "山田 太郎",
+      roomName: "漁師の家",
+      detectedAt: "2025-10-20T18:30:00Z",
+      reservedCount: 4,
+      actualCount: 6,
+      status: "open"
+    });
+    this.alerts.set(2, {
+      id: 2,
+      bookingId: 3,
+      guestName: "鈴木 一郎",
+      roomName: "長屋 C",
+      detectedAt: "2025-10-19T20:15:00Z",
+      reservedCount: 2,
+      actualCount: 3,
+      status: "acknowledged"
+    });
+    this.alerts.set(3, {
+      id: 3,
+      bookingId: 5,
+      guestName: "高橋 美咲",
+      roomName: "長屋 B",
+      detectedAt: "2025-10-18T19:00:00Z",
+      reservedCount: 3,
+      actualCount: 4,
+      status: "resolved"
     });
   }
 
@@ -101,6 +152,25 @@ export class MemStorage implements IStorage {
     
     const updated = { ...booking, ...data };
     this.bookings.set(id, updated);
+    return updated;
+  }
+
+  async getAlerts(): Promise<AlertData[]> {
+    return Array.from(this.alerts.values());
+  }
+
+  async getAlert(id: number): Promise<AlertData | undefined> {
+    return this.alerts.get(id);
+  }
+
+  async updateAlertStatus(id: number, status: "open" | "acknowledged" | "resolved"): Promise<AlertData | undefined> {
+    const alert = this.alerts.get(id);
+    if (!alert) {
+      return undefined;
+    }
+    
+    const updated = { ...alert, status };
+    this.alerts.set(id, updated);
     return updated;
   }
 }

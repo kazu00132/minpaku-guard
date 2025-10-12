@@ -397,6 +397,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Alerts API
+  app.get("/api/alerts", async (req, res) => {
+    try {
+      const alerts = await storage.getAlerts();
+      res.json(alerts);
+    } catch (error) {
+      console.error("Get alerts error:", error);
+      res.status(500).json({ error: "アラート一覧の取得に失敗しました" });
+    }
+  });
+
+  app.patch("/api/alerts/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      
+      // Validate request body
+      const updateSchema = z.object({
+        status: z.enum(["open", "acknowledged", "resolved"]),
+      });
+      
+      const validationResult = updateSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "無効なステータスです",
+          details: validationResult.error.errors 
+        });
+      }
+      
+      const updated = await storage.updateAlertStatus(id, validationResult.data.status);
+      
+      if (!updated) {
+        return res.status(404).json({ error: "アラートが見つかりません" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Update alert error:", error);
+      res.status(500).json({ error: "アラートの更新に失敗しました" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

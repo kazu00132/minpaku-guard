@@ -46,9 +46,19 @@ export const bookings = pgTable("bookings", {
   status: text("status").notNull().default("booked"), // booked, checked_in, checked_out, canceled
 });
 
+export const alerts = pgTable("alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull().references(() => bookings.id),
+  detectedAt: timestamp("detected_at").notNull().defaultNow(),
+  reservedCount: integer("reserved_count").notNull(),
+  actualCount: integer("actual_count").notNull(),
+  status: text("status").notNull().default("open"), // open, acknowledged, resolved
+});
+
 export const insertGuestSchema = createInsertSchema(guests).omit({ id: true });
 export const insertRoomSchema = createInsertSchema(rooms).omit({ id: true });
 export const insertBookingSchema = createInsertSchema(bookings).omit({ id: true });
+export const insertAlertSchema = createInsertSchema(alerts).omit({ id: true });
 
 export type Guest = typeof guests.$inferSelect;
 export type InsertGuest = z.infer<typeof insertGuestSchema>;
@@ -56,3 +66,5 @@ export type Room = typeof rooms.$inferSelect;
 export type InsertRoom = z.infer<typeof insertRoomSchema>;
 export type Booking = typeof bookings.$inferSelect;
 export type InsertBooking = z.infer<typeof insertBookingSchema>;
+export type Alert = typeof alerts.$inferSelect;
+export type InsertAlert = z.infer<typeof insertAlertSchema>;
