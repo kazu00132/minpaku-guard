@@ -333,4 +333,24 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Mobile touch target enhancement for iPhone 13 (390px width)
+   * Extends clickable area to minimum 44x44px without changing visual size
+   * Based on iOS Human Interface Guidelines */
+  @media (max-width: 640px) {
+    .touch-target {
+      position: relative;
+    }
+    
+    .touch-target::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      min-width: 44px;
+      min-height: 44px;
+      /* Ensure it's clickable but invisible */
+    }
+  }
 }

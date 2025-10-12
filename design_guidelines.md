@@ -153,8 +153,24 @@
 ## Responsive Breakpoints
 
 - Mobile: < 640px (sm) - Single column, collapsible nav
+  - **iPhone 13 (390px)**: Optimized for touch interactions with horizontal scroll on data tables
 - Tablet: 640px - 1024px (md-lg) - 2-column cards, visible sidebar
 - Desktop: > 1024px (xl) - Full multi-column layout, expanded nav
+
+### Mobile Optimizations (iPhone 13)
+
+**Screen**: 390px × 844px (portrait)
+
+**Touch Targets**: 
+- Interactive elements maintain visual size (32-40px) while providing adequate tap area
+- Data tables use horizontal scroll to preserve readability
+- `.touch-target` utility class available for extending clickable area to 44×44px minimum
+
+**Layout Adaptations**:
+- Stats cards: Single column stack on mobile
+- Bookings table: Horizontal scroll enabled (`overflow-x-auto`)
+- Sidebar: Auto-collapse on mobile with toggle button
+- Forms: Full-width inputs with comfortable spacing
 
 ---
 

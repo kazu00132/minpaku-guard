@@ -41,7 +41,7 @@ export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail
   };
 
   return (
-    <div className="border rounded-md">
+    <div className="border rounded-md overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
