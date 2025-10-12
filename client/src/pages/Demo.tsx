@@ -14,6 +14,7 @@ interface VerificationResult {
   isMatch: boolean;
   confidence: number;
   guestName: string;
+  registeredFaceUrl: string | null;
 }
 
 interface DifyResponse {
@@ -50,7 +51,7 @@ export default function Demo() {
   // Photo verification states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
-  const [selectedGuest, setSelectedGuest] = useState<string>("");
+  const [selectedBookingForFace, setSelectedBookingForFace] = useState<string>("");
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   
   // Video processing states
@@ -60,12 +61,6 @@ export default function Demo() {
   const [videoProcessResult, setVideoProcessResult] = useState<VideoProcessResponse | null>(null);
   
   const { toast } = useToast();
-
-  const mockGuests = [
-    { id: "1", name: "田中太郎", faceImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=tanaka" },
-    { id: "2", name: "佐藤花子", faceImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=sato" },
-    { id: "3", name: "山田次郎", faceImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=yamada" },
-  ];
 
   const { data: bookings = [] } = useQuery<Booking[]>({
     queryKey: ["/api/bookings"],
@@ -96,13 +91,13 @@ export default function Demo() {
 
   const verifyFaceMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedFile || !selectedGuest) {
-        throw new Error("写真とゲストを選択してください");
+      if (!selectedFile || !selectedBookingForFace) {
+        throw new Error("写真と予約を選択してください");
       }
 
       const formData = new FormData();
       formData.append("photo", selectedFile);
-      formData.append("guestId", selectedGuest);
+      formData.append("bookingId", selectedBookingForFace);
 
       const response = await fetch("/api/demo/verify", {
         method: "POST",
@@ -143,7 +138,7 @@ export default function Demo() {
         "POST",
         "/api/demo/trigger-dify",
         {
-          guestId: selectedGuest,
+          bookingId: selectedBookingForFace,
           confidence: verificationResult.confidence,
           isMatch: verificationResult.isMatch,
         }
@@ -329,15 +324,15 @@ export default function Demo() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="guest-select">照合するゲストを選択</Label>
-              <Select value={selectedGuest} onValueChange={setSelectedGuest}>
+              <Label htmlFor="guest-select">照合する予約を選択</Label>
+              <Select value={selectedBookingForFace} onValueChange={setSelectedBookingForFace}>
                 <SelectTrigger id="guest-select" data-testid="select-guest">
-                  <SelectValue placeholder="ゲストを選択" />
+                  <SelectValue placeholder="予約を選択" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockGuests.map((guest) => (
-                    <SelectItem key={guest.id} value={guest.id}>
-                      {guest.name}
+                  {bookings.map((booking) => (
+                    <SelectItem key={booking.id} value={booking.id.toString()}>
+                      {booking.guestName} - {booking.roomName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -346,7 +341,7 @@ export default function Demo() {
 
             <Button
               onClick={() => verifyFaceMutation.mutate()}
-              disabled={!selectedFile || !selectedGuest || verifyFaceMutation.isPending}
+              disabled={!selectedFile || !selectedBookingForFace || verifyFaceMutation.isPending}
               className="w-full"
               data-testid="button-verify"
             >
@@ -376,6 +371,36 @@ export default function Demo() {
                     <p className="text-sm text-muted-foreground">
                       {verificationResult.guestName}
                     </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>比較画像</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground text-center">アップロード画像</p>
+                      <img
+                        src={previewUrl}
+                        alt="Uploaded"
+                        className="w-full h-32 object-cover rounded-lg border"
+                        data-testid="img-uploaded"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground text-center">登録済み顔写真</p>
+                      {verificationResult.registeredFaceUrl ? (
+                        <img
+                          src={verificationResult.registeredFaceUrl}
+                          alt="Registered"
+                          className="w-full h-32 object-cover rounded-lg border"
+                          data-testid="img-registered"
+                        />
+                      ) : (
+                        <div className="w-full h-32 flex items-center justify-center rounded-lg border bg-muted">
+                          <p className="text-xs text-muted-foreground">画像なし</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

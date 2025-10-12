@@ -146,31 +146,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Demo: Face verification endpoint
   app.post("/api/demo/verify", upload.single("photo"), async (req, res) => {
     try {
-      const { guestId } = req.body;
+      const { bookingId } = req.body;
       const photo = req.file;
 
-      if (!photo || !guestId) {
-        return res.status(400).json({ error: "写真とゲストIDが必要です" });
+      if (!photo || !bookingId) {
+        return res.status(400).json({ error: "写真と予約IDが必要です" });
       }
 
-      // Mock guest data
-      const mockGuests: Record<string, string> = {
-        "1": "田中太郎",
-        "2": "佐藤花子",
-        "3": "山田次郎",
-      };
+      // Get booking data to get guest face image
+      const bookingIdNum = parseInt(bookingId, 10);
+      const booking = await storage.getBooking(bookingIdNum);
 
-      const guestName = mockGuests[guestId] || "不明なゲスト";
+      if (!booking) {
+        return res.status(404).json({ error: "予約が見つかりません" });
+      }
 
       // Mock Face API response
       // TODO: Replace with actual Azure Face API or AWS Rekognition
       const confidence = Math.random() * 0.4 + 0.6; // 60-100%
-      const isMatch = confidence > 0.8; // 80% threshold
+      const isMatch = confidence > 0.75; // 75% threshold
 
       res.json({
         isMatch,
         confidence,
-        guestName,
+        guestName: booking.guestName,
+        registeredFaceUrl: booking.faceImageUrl || null,
       });
     } catch (error) {
       console.error("Face verification error:", error);
@@ -181,9 +181,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Demo: Trigger Dify workflow endpoint
   app.post("/api/demo/trigger-dify", async (req, res) => {
     try {
-      const { guestId, confidence, isMatch } = req.body;
+      const { bookingId, confidence, isMatch } = req.body;
 
-      if (!guestId || confidence === undefined || isMatch === undefined) {
+      if (!bookingId || confidence === undefined || isMatch === undefined) {
         return res.status(400).json({ error: "必要なパラメータが不足しています" });
       }
 
@@ -196,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
       //   body: JSON.stringify({
-      //     guest_id: guestId,
+      //     booking_id: bookingId,
       //     face_confidence: confidence,
       //     is_verified: isMatch
       //   })
