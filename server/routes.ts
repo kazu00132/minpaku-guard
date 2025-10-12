@@ -8,6 +8,7 @@ import path from "path";
 import { insertBookingSchema, insertGuestSchema } from "@shared/schema";
 import { z } from "zod";
 import { countPeopleInImage } from "./openai";
+import { triggerDifyWorkflow } from "./dify";
 
 const upload = multer({ 
   storage: multer.diskStorage({
@@ -166,8 +167,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Process each frame using OpenAI Vision API
       const results = [];
+      console.log("[Video Processing] Processing", frameFiles.length, "frames with OpenAI Vision API");
+      
       for (let i = 0; i < frameFiles.length; i++) {
         const timestamp = `${i * 10}秒`;
+        console.log(`[Video Processing] Frame ${i + 1}/${frameFiles.length} at ${timestamp}`);
         
         // Read frame and convert to base64
         const framePath = path.join(tempDir, frameFiles[i]);
@@ -180,6 +184,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const confidence = visionResult.confidence;
         const hasDiscrepancy = detectedCount !== booking.reservedCount;
 
+        console.log(`[Video Processing] Frame ${i + 1}: ${detectedCount} people (confidence: ${(confidence * 100).toFixed(1)}%)`);
+
         results.push({
           timestamp,
           detectedCount,
@@ -188,19 +194,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: visionResult.description,
         });
       }
+      
+      console.log("[Video Processing] All frames processed");
+
+      // Determine overall discrepancy status
+      const hasOverallDiscrepancy = results.some(r => r.hasDiscrepancy);
+      const detectedCounts = results.map(r => r.detectedCount);
+      const mostFrequentCount = detectedCounts.sort((a, b) =>
+        detectedCounts.filter(c => c === a).length - detectedCounts.filter(c => c === b).length
+      ).pop() || 0;
+
+      // Trigger Dify workflow
+      let difyResponse = null;
+      console.log("[Video Processing] Calling Dify workflow, hasDiscrepancy:", hasOverallDiscrepancy);
+      
+      try {
+        difyResponse = await triggerDifyWorkflow(
+          hasOverallDiscrepancy,
+          booking.reservedCount,
+          mostFrequentCount,
+          `${booking.guestName} - ${booking.roomName}`
+        );
+        console.log("[Video Processing] Dify workflow success, ID:", difyResponse.workflow_run_id);
+      } catch (difyError) {
+        console.error("[Video Processing] Dify workflow error:", difyError);
+      }
 
       // Clean up temp directory and uploaded video
       await fs.rm(tempDir, { recursive: true, force: true });
       if (uploadedVideoPath) {
         await fs.unlink(uploadedVideoPath);
       }
+      console.log("[Video Processing] Cleanup complete");
 
-      res.json({
+      const response = {
         success: true,
         results,
         bookingName: `${booking.guestName} - ${booking.roomName}`,
         reservedCount: booking.reservedCount,
-      });
+        difyResult: difyResponse ? {
+          workflowRunId: difyResponse.workflow_run_id,
+          status: difyResponse.data.status,
+          outputs: difyResponse.data.outputs,
+          error: difyResponse.data.error,
+        } : null,
+      };
+      
+      console.log("[Video Processing] Response ready");
+      res.json(response);
     } catch (error) {
       console.error("Video processing error:", error);
       // Clean up on error
