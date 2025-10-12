@@ -171,23 +171,35 @@ export default function Demo() {
         throw new Error("動画と予約を選択してください");
       }
 
+      console.log("[Video Process] Starting video processing...");
       const formData = new FormData();
       formData.append("video", selectedVideo);
       formData.append("bookingId", selectedBooking);
 
-      const response = await fetch("/api/demo/process-video", {
-        method: "POST",
-        body: formData,
-      });
+      try {
+        const response = await fetch("/api/demo/process-video", {
+          method: "POST",
+          body: formData,
+        });
 
-      if (!response.ok) {
-        throw new Error("動画処理に失敗しました");
+        console.log("[Video Process] Response received:", response.status, response.ok);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("[Video Process] Error response:", errorText);
+          throw new Error("動画処理に失敗しました");
+        }
+
+        const data = await response.json();
+        console.log("[Video Process] Success data:", data);
+        return data as VideoProcessResponse;
+      } catch (error) {
+        console.error("[Video Process] Fetch error:", error);
+        throw error;
       }
-
-      const data = await response.json();
-      return data as VideoProcessResponse;
     },
     onSuccess: (data: VideoProcessResponse) => {
+      console.log("[Video Process] onSuccess called with data:", data);
       setVideoProcessResult(data);
       const hasDiscrepancy = data.results.some(r => r.hasDiscrepancy);
       toast({
@@ -199,6 +211,7 @@ export default function Demo() {
       });
     },
     onError: (error: Error) => {
+      console.error("[Video Process] onError called:", error);
       toast({
         title: "エラー",
         description: error.message,
