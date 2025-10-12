@@ -146,16 +146,23 @@ export default function EditBookingDialog({ booking, open, onOpenChange }: EditB
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>予約人数</FormLabel>
-                  <FormControl>
-                    <Input 
-                      {...field} 
-                      type="number"
-                      min={1}
-                      max={20}
-                      onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                      data-testid="input-reserved-count"
-                    />
-                  </FormControl>
+                  <Select 
+                    onValueChange={(value) => field.onChange(parseInt(value, 10))} 
+                    value={field.value?.toString()}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-reserved-count">
+                        <SelectValue placeholder="人数を選択" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+                        <SelectItem key={num} value={num.toString()}>
+                          {num}人
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
