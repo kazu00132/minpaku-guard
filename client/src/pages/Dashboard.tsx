@@ -89,8 +89,10 @@ export default function Dashboard() {
   ];
 
   const handleEdit = (booking: Booking) => {
+    console.log('handleEdit called with booking:', booking);
     setSelectedBooking(booking);
     setEditDialogOpen(true);
+    console.log('Edit dialog should now be open');
   };
 
   const handleDelete = (booking: Booking) => {

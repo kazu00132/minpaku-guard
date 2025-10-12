@@ -245,7 +245,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bookings.map(async (booking) => {
           const guest = await storage.getGuest(booking.guestId);
           const room = await storage.getRoom(booking.roomId);
-          const entryEvents = await storage.getEntryEventsByBooking(booking.id);
+          // TODO: Implement entry events tracking
+          // const entryEvents = await storage.getEntryEventsByBooking(booking.id);
           
           return {
             id: booking.id,
@@ -261,7 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: room.id,
               name: room.name,
             } : null,
-            entryEvents: entryEvents || [],
+            entryEvents: [], // Empty for now until entry events are implemented
           };
         })
       );

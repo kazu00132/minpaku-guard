@@ -43,6 +43,7 @@ interface EditBookingDialogProps {
 }
 
 export default function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDialogProps) {
+  console.log('EditBookingDialog rendered:', { booking, open });
   const { toast } = useToast();
 
   const { data: rooms = [] } = useQuery<Room[]>({
