@@ -22,7 +22,7 @@ export interface AlertData {
   detectedAt: string;
   reservedCount: number;
   actualCount: number;
-  status: "open" | "acknowledged" | "resolved";
+  status: "open" | "resolved";
 }
 
 // modify the interface with any CRUD methods
@@ -42,7 +42,7 @@ export interface IStorage {
   getAlerts(): Promise<AlertData[]>;
   getAlert(id: number): Promise<AlertData | undefined>;
   createAlert(data: Omit<AlertData, 'id'>): Promise<AlertData>;
-  updateAlertStatus(id: number, status: "open" | "acknowledged" | "resolved"): Promise<AlertData | undefined>;
+  updateAlertStatus(id: number, status: "open" | "resolved"): Promise<AlertData | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -106,7 +106,7 @@ export class MemStorage implements IStorage {
       detectedAt: "2025-10-19T20:15:00Z",
       reservedCount: 2,
       actualCount: 3,
-      status: "acknowledged"
+      status: "open"
     });
     this.alerts.set(3, {
       id: 3,
@@ -171,7 +171,7 @@ export class MemStorage implements IStorage {
     return alert;
   }
 
-  async updateAlertStatus(id: number, status: "open" | "acknowledged" | "resolved"): Promise<AlertData | undefined> {
+  async updateAlertStatus(id: number, status: "open" | "resolved"): Promise<AlertData | undefined> {
     const alert = this.alerts.get(id);
     if (!alert) {
       return undefined;

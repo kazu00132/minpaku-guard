@@ -14,7 +14,7 @@ export default function Alerts() {
 
   // Update alert status mutation
   const updateAlertMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: "open" | "acknowledged" | "resolved" }) => {
+    mutationFn: async ({ id, status }: { id: number; status: "open" | "resolved" }) => {
       const response = await apiRequest("PATCH", `/api/alerts/${id}`, { status });
       return await response.json();
     },
@@ -48,7 +48,6 @@ export default function Alerts() {
   };
 
   const openAlerts = alerts.filter(a => a.status === "open");
-  const acknowledgedAlerts = alerts.filter(a => a.status === "acknowledged");
   const resolvedAlerts = alerts.filter(a => a.status === "resolved");
 
   if (isLoading) {
@@ -89,9 +88,6 @@ export default function Alerts() {
           <TabsTrigger value="open" data-testid="tab-open">
             未対応 ({openAlerts.length})
           </TabsTrigger>
-          <TabsTrigger value="acknowledged" data-testid="tab-acknowledged">
-            対応中 ({acknowledgedAlerts.length})
-          </TabsTrigger>
           <TabsTrigger value="resolved" data-testid="tab-resolved">
             解決済 ({resolvedAlerts.length})
           </TabsTrigger>
@@ -99,13 +95,6 @@ export default function Alerts() {
         <TabsContent value="open" className="mt-6">
           <AlertsList 
             alerts={openAlerts}
-            onAcknowledge={handleAcknowledge}
-            onContact={handleContact}
-          />
-        </TabsContent>
-        <TabsContent value="acknowledged" className="mt-6">
-          <AlertsList 
-            alerts={acknowledgedAlerts}
             onAcknowledge={handleAcknowledge}
             onContact={handleContact}
           />

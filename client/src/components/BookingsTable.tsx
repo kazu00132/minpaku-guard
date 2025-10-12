@@ -22,9 +22,10 @@ interface BookingsTableProps {
   onCall?: (id: number) => void;
   onEmail?: (id: number) => void;
   onEdit?: (booking: Booking) => void;
+  showActions?: boolean;
 }
 
-export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail, onEdit }: BookingsTableProps) {
+export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail, onEdit, showActions = true }: BookingsTableProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "checked_in":
@@ -51,7 +52,7 @@ export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail
             <TableHead className="text-center">予約人数</TableHead>
             <TableHead className="text-center">実人数</TableHead>
             <TableHead>状態</TableHead>
-            <TableHead className="text-right">操作</TableHead>
+            {showActions && <TableHead className="text-right">操作</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -83,42 +84,44 @@ export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail
                 )}
               </TableCell>
               <TableCell>{getStatusBadge(booking.status)}</TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-1">
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => onEdit?.(booking)}
-                    data-testid={`button-edit-${booking.id}`}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => onCall?.(booking.id)}
-                    data-testid={`button-call-${booking.id}`}
-                  >
-                    <Phone className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => onEmail?.(booking.id)}
-                    data-testid={`button-email-${booking.id}`}
-                  >
-                    <Mail className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => onViewDetails?.(booking.id)}
-                    data-testid={`button-view-${booking.id}`}
-                  >
-                    <Eye className="w-4 h-4" />
-                  </Button>
-                </div>
-              </TableCell>
+              {showActions && (
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => onEdit?.(booking)}
+                      data-testid={`button-edit-${booking.id}`}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => onCall?.(booking.id)}
+                      data-testid={`button-call-${booking.id}`}
+                    >
+                      <Phone className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => onEmail?.(booking.id)}
+                      data-testid={`button-email-${booking.id}`}
+                    >
+                      <Mail className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => onViewDetails?.(booking.id)}
+                      data-testid={`button-view-${booking.id}`}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

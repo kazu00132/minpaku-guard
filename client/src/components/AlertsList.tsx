@@ -12,16 +12,42 @@ export interface Alert {
   detectedAt: string;
   reservedCount: number;
   actualCount: number;
-  status: "open" | "acknowledged" | "resolved";
+  status: "open" | "resolved";
 }
 
 interface AlertsListProps {
   alerts: Alert[];
   onAcknowledge?: (id: number) => void;
   onContact?: (id: number, method: "email" | "phone") => void;
+  simplified?: boolean;
 }
 
-export default function AlertsList({ alerts, onAcknowledge, onContact }: AlertsListProps) {
+export default function AlertsList({ alerts, onAcknowledge, onContact, simplified = false }: AlertsListProps) {
+  if (simplified) {
+    return (
+      <div className="space-y-3">
+        {alerts.map((alert) => (
+          <Card key={alert.id} className="p-4" data-testid={`card-alert-${alert.id}`}>
+            <div className="flex items-start gap-4">
+              <div className="mt-1">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold mb-1" data-testid={`text-alert-guest-${alert.id}`}>
+                  {alert.guestName}
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  予約人数: <span className="font-medium">{alert.reservedCount}</span> → 
+                  実人数: <span className="font-semibold text-amber-500">{alert.actualCount}</span>
+                </p>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       {alerts.map((alert) => (
@@ -54,11 +80,6 @@ export default function AlertsList({ alerts, onAcknowledge, onContact }: AlertsL
                     未対応
                   </Badge>
                 )}
-                {alert.status === "acknowledged" && (
-                  <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                    対応中
-                  </Badge>
-                )}
                 {alert.status === "resolved" && (
                   <Badge variant="outline" className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
                     解決済
@@ -74,7 +95,7 @@ export default function AlertsList({ alerts, onAcknowledge, onContact }: AlertsL
                     data-testid={`button-acknowledge-${alert.id}`}
                   >
                     <Check className="w-4 h-4 mr-1" />
-                    確認済み
+                    解決
                   </Button>
                   <Button 
                     size="sm" 

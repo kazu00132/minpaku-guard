@@ -52,7 +52,7 @@ export const alerts = pgTable("alerts", {
   detectedAt: timestamp("detected_at").notNull().defaultNow(),
   reservedCount: integer("reserved_count").notNull(),
   actualCount: integer("actual_count").notNull(),
-  status: text("status").notNull().default("open"), // open, acknowledged, resolved
+  status: text("status").notNull().default("open"), // open, resolved
 });
 
 export const insertGuestSchema = createInsertSchema(guests).omit({ id: true });

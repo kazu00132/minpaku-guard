@@ -439,7 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Validate request body
       const updateSchema = z.object({
-        status: z.enum(["open", "acknowledged", "resolved"]),
+        status: z.enum(["open", "resolved"]),
       });
       
       const validationResult = updateSchema.safeParse(req.body);

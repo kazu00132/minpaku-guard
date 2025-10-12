@@ -20,7 +20,7 @@ export default function AlertsListExample() {
       detectedAt: "2025-10-19T20:15:00",
       reservedCount: 2,
       actualCount: 3,
-      status: "acknowledged" as const
+      status: "open" as const
     }
   ];
 
