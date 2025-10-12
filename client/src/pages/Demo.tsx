@@ -21,18 +21,27 @@ interface DifyResponse {
   message: string;
 }
 
-interface VideoProcessResult {
-  timestamp: string;
-  detectedCount: number;
-  hasDiscrepancy: boolean;
-  confidence: number;
+interface FrameResult {
+  index: number;
+  peopleCount: number;
+  image: string;
 }
 
 interface VideoProcessResponse {
   success: boolean;
-  results: VideoProcessResult[];
-  bookingName: string;
   reservedCount: number;
+  detectedCount: number;
+  frameCount: number;
+  frameCounts: number[];
+  status: "error" | "normal";
+  message: string;
+  frames: FrameResult[];
+}
+
+interface DifySendResponse {
+  success: boolean;
+  difyResponse: any;
+  message: string;
 }
 
 export default function Demo() {
@@ -162,9 +171,14 @@ export default function Demo() {
         throw new Error("動画と予約を選択してください");
       }
 
+      const booking = mockBookings.find(b => b.id === selectedBooking);
+      if (!booking) {
+        throw new Error("予約が見つかりません");
+      }
+
       const formData = new FormData();
       formData.append("video", selectedVideo);
-      formData.append("bookingId", selectedBooking);
+      formData.append("reservedCount", booking.reservedCount.toString());
 
       const response = await fetch("/api/demo/process-video", {
         method: "POST",
@@ -180,18 +194,48 @@ export default function Demo() {
     },
     onSuccess: (data: VideoProcessResponse) => {
       setVideoProcessResult(data);
-      const hasDiscrepancy = data.results.some(r => r.hasDiscrepancy);
       toast({
-        title: hasDiscrepancy ? "差分検知" : "処理完了",
-        description: hasDiscrepancy 
-          ? "予約人数と実際の人数に差異が見つかりました" 
-          : "動画処理が完了しました",
-        variant: hasDiscrepancy ? "destructive" : "default",
+        title: data.status === "error" ? "差分検知" : "処理完了",
+        description: data.message,
+        variant: data.status === "error" ? "destructive" : "default",
       });
     },
     onError: (error: Error) => {
       toast({
         title: "エラー",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const sendToDifyMutation = useMutation({
+    mutationFn: async () => {
+      if (!videoProcessResult) {
+        throw new Error("先に動画処理を実行してください");
+      }
+
+      const response = await apiRequest(
+        "POST",
+        "/api/demo/send-to-dify",
+        {
+          reservedCount: videoProcessResult.reservedCount,
+          detectedCount: videoProcessResult.detectedCount,
+          frames: videoProcessResult.frames,
+        }
+      );
+
+      return response.json() as Promise<DifySendResponse>;
+    },
+    onSuccess: (data: DifySendResponse) => {
+      toast({
+        title: "Dify送信成功",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Dify送信失敗",
         description: error.message,
         variant: "destructive",
       });
@@ -457,49 +501,61 @@ export default function Demo() {
             <Card>
               <CardHeader>
                 <CardTitle>人数カウント結果</CardTitle>
-                <CardDescription>10秒ごとの人数判定結果を表示します</CardDescription>
+                <CardDescription>5秒ごとの人数判定結果を表示します</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {videoProcessResult ? (
                   <>
-                    <div className="flex items-center gap-4 p-4 rounded-lg border bg-card">
-                      <Users className="h-12 w-12 text-primary" />
+                    <div className={`flex items-center gap-4 p-4 rounded-lg border ${
+                      videoProcessResult.status === "error" ? "bg-destructive/10 border-destructive" : "bg-card"
+                    }`}>
+                      {videoProcessResult.status === "error" ? (
+                        <AlertCircle className="h-12 w-12 text-destructive" />
+                      ) : (
+                        <CheckCircle className="h-12 w-12 text-green-500" />
+                      )}
                       <div className="flex-1">
-                        <p className="font-semibold text-lg">
-                          {videoProcessResult.bookingName}
+                        <p className="font-semibold text-lg" data-testid="text-video-status">
+                          {videoProcessResult.status === "error" ? "差分検知" : "正常"}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          予約人数: {videoProcessResult.reservedCount}名
+                          予約: {videoProcessResult.reservedCount}名 / 検出: {videoProcessResult.detectedCount}名
                         </p>
                       </div>
                     </div>
 
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {videoProcessResult.results.map((result, index) => (
-                        <div
-                          key={index}
-                          className={`p-3 rounded-lg border ${
-                            result.hasDiscrepancy ? "bg-destructive/10 border-destructive" : "bg-card"
-                          }`}
-                          data-testid={`result-${index}`}
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className="font-semibold">{result.timestamp}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">
-                                検出: {result.detectedCount}名
-                              </span>
-                              {result.hasDiscrepancy && (
-                                <AlertCircle className="h-4 w-4 text-destructive" />
-                              )}
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold">フレーム分析結果 ({videoProcessResult.frameCount}フレーム)</p>
+                      <div className="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto">
+                        {videoProcessResult.frames.map((frame, index) => (
+                          <div
+                            key={index}
+                            className="p-2 rounded-lg border bg-card"
+                            data-testid={`frame-${index}`}
+                          >
+                            <img 
+                              src={frame.image} 
+                              alt={`Frame ${frame.index}`}
+                              className="w-full h-24 object-cover rounded mb-2"
+                            />
+                            <div className="text-xs">
+                              <p className="font-semibold">フレーム {frame.index}</p>
+                              <p className="text-muted-foreground">{frame.peopleCount}名検出</p>
                             </div>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            信頼度: {(result.confidence * 100).toFixed(1)}%
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
+
+                    <Button
+                      onClick={() => sendToDifyMutation.mutate()}
+                      disabled={sendToDifyMutation.isPending}
+                      className="w-full"
+                      variant="default"
+                      data-testid="button-send-dify"
+                    >
+                      {sendToDifyMutation.isPending ? "送信中..." : "Difyへ連携"}
+                    </Button>
                   </>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
@@ -545,21 +601,46 @@ Content-Type: multipart/form-data
 
 FormData:
   - video: File (動画ファイル)
-  - bookingId: string (予約ID)
+  - reservedCount: string (予約人数)
 
 Response:
 {
   "success": boolean,
-  "results": [
+  "reservedCount": number,
+  "detectedCount": number,
+  "frameCount": number,
+  "frameCounts": number[],
+  "status": "error" | "normal",
+  "message": string,
+  "frames": [
     {
-      "timestamp": string,
-      "detectedCount": number,
-      "hasDiscrepancy": boolean,
-      "confidence": number
+      "index": number,
+      "peopleCount": number,
+      "image": string (base64)
     }
-  ],
-  "bookingName": string,
-  "reservedCount": number
+  ]
+}`}
+            </pre>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-semibold">3. Dify連携API</h3>
+            <pre className="bg-secondary p-4 rounded-lg text-xs overflow-x-auto">
+{`POST /api/demo/send-to-dify
+Content-Type: application/json
+
+Body:
+{
+  "reservedCount": number,
+  "detectedCount": number,
+  "frames": FrameResult[]
+}
+
+Response:
+{
+  "success": boolean,
+  "difyResponse": object,
+  "message": string
 }`}
             </pre>
           </div>
