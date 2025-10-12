@@ -1,43 +1,81 @@
-import AlertsList from "@/components/AlertsList";
+import AlertsList, { Alert } from "@/components/AlertsList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Alerts() {
-  const allAlerts = [
-    {
-      id: 1,
-      bookingId: 1,
-      guestName: "山田 太郎",
-      roomName: "漁師の家",
-      detectedAt: "2025-10-20T18:30:00",
-      reservedCount: 4,
-      actualCount: 6,
-      status: "open" as const
-    },
-    {
-      id: 2,
-      bookingId: 3,
-      guestName: "鈴木 一郎",
-      roomName: "長屋 C",
-      detectedAt: "2025-10-19T20:15:00",
-      reservedCount: 2,
-      actualCount: 3,
-      status: "acknowledged" as const
-    },
-    {
-      id: 3,
-      bookingId: 5,
-      guestName: "高橋 美咲",
-      roomName: "長屋 B",
-      detectedAt: "2025-10-18T19:00:00",
-      reservedCount: 3,
-      actualCount: 4,
-      status: "resolved" as const
-    }
-  ];
+  const { toast } = useToast();
 
-  const openAlerts = allAlerts.filter(a => a.status === "open");
-  const acknowledgedAlerts = allAlerts.filter(a => a.status === "acknowledged");
-  const resolvedAlerts = allAlerts.filter(a => a.status === "resolved");
+  // Fetch alerts
+  const { data: alerts = [], isLoading, error } = useQuery<Alert[]>({
+    queryKey: ["/api/alerts"],
+  });
+
+  // Update alert status mutation
+  const updateAlertMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: "open" | "acknowledged" | "resolved" }) => {
+      const response = await apiRequest("PATCH", `/api/alerts/${id}`, { status });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
+      toast({
+        title: "更新しました",
+        description: "アラートのステータスを更新しました",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "エラー",
+        description: "アラートの更新に失敗しました",
+        variant: "destructive",
+      });
+      console.error("Alert update error:", error);
+    },
+  });
+
+  const handleAcknowledge = (id: number) => {
+    updateAlertMutation.mutate({ id, status: "resolved" });
+  };
+
+  const handleContact = (id: number, method: "email" | "phone") => {
+    console.log("Contact:", id, method);
+    toast({
+      title: "連絡機能",
+      description: `${method === "email" ? "メール" : "電話"}機能は準備中です`,
+    });
+  };
+
+  const openAlerts = alerts.filter(a => a.status === "open");
+  const acknowledgedAlerts = alerts.filter(a => a.status === "acknowledged");
+  const resolvedAlerts = alerts.filter(a => a.status === "resolved");
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">アラート管理</h1>
+          <p className="text-muted-foreground">予約人数と実人数の差分を管理</p>
+        </div>
+        <div className="text-center py-8 text-muted-foreground">読み込み中...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">アラート管理</h1>
+          <p className="text-muted-foreground">予約人数と実人数の差分を管理</p>
+        </div>
+        <div className="text-center py-8 text-destructive">
+          エラーが発生しました: {error instanceof Error ? error.message : "不明なエラー"}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -61,22 +99,22 @@ export default function Alerts() {
         <TabsContent value="open" className="mt-6">
           <AlertsList 
             alerts={openAlerts}
-            onAcknowledge={(id) => console.log('Acknowledge:', id)}
-            onContact={(id, method) => console.log('Contact:', id, method)}
+            onAcknowledge={handleAcknowledge}
+            onContact={handleContact}
           />
         </TabsContent>
         <TabsContent value="acknowledged" className="mt-6">
           <AlertsList 
             alerts={acknowledgedAlerts}
-            onAcknowledge={(id) => console.log('Acknowledge:', id)}
-            onContact={(id, method) => console.log('Contact:', id, method)}
+            onAcknowledge={handleAcknowledge}
+            onContact={handleContact}
           />
         </TabsContent>
         <TabsContent value="resolved" className="mt-6">
           <AlertsList 
             alerts={resolvedAlerts}
-            onAcknowledge={(id) => console.log('Acknowledge:', id)}
-            onContact={(id, method) => console.log('Contact:', id, method)}
+            onAcknowledge={handleAcknowledge}
+            onContact={handleContact}
           />
         </TabsContent>
       </Tabs>
