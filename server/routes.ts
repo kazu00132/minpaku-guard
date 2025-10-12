@@ -112,11 +112,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { bookingId } = req.body;
       const video = req.file;
 
+      console.log("[Video Processing] Request received, bookingId:", bookingId);
+
       if (!video || !bookingId) {
         return res.status(400).json({ error: "動画と予約IDが必要です" });
       }
 
       uploadedVideoPath = video.path;
+      console.log("[Video Processing] Video uploaded:", video.originalname, "Size:", video.size, "bytes");
 
       // Mock booking data
       const mockBookings: Record<string, { guestName: string; roomName: string; reservedCount: number }> = {
@@ -131,9 +134,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create temp directory for frames
       await fs.mkdir(tempDir, { recursive: true });
+      console.log("[Video Processing] Temp directory created:", tempDir);
 
       // Extract frames every 10 seconds using ffmpeg with spawn to avoid buffer overflow
       const framesPattern = path.join(tempDir, "frame_%03d.jpg");
+      console.log("[Video Processing] Starting ffmpeg frame extraction...");
       
       await new Promise<void>((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
@@ -150,13 +155,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         ffmpeg.on("close", (code) => {
           if (code === 0) {
+            console.log("[Video Processing] ffmpeg extraction completed successfully");
             resolve();
           } else {
+            console.error("[Video Processing] ffmpeg failed:", stderr);
             reject(new Error(`ffmpeg failed with code ${code}: ${stderr}`));
           }
         });
 
         ffmpeg.on("error", (err) => {
+          console.error("[Video Processing] ffmpeg error:", err);
           reject(err);
         });
       });
@@ -164,11 +172,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get list of extracted frames
       const files = await fs.readdir(tempDir);
       const frameFiles = files.filter(f => f.startsWith("frame_")).sort();
+      console.log("[Video Processing] Extracted", frameFiles.length, "frames");
 
       // Process each frame using OpenAI Vision API
       const results = [];
+      console.log("[Video Processing] Starting OpenAI Vision API processing for", frameFiles.length, "frames");
+      
       for (let i = 0; i < frameFiles.length; i++) {
         const timestamp = `${i * 10}秒`;
+        console.log(`[Video Processing] Processing frame ${i + 1}/${frameFiles.length} (${timestamp})`);
         
         // Read frame and convert to base64
         const framePath = path.join(tempDir, frameFiles[i]);
@@ -181,6 +193,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const confidence = visionResult.confidence;
         const hasDiscrepancy = detectedCount !== booking.reservedCount;
 
+        console.log(`[Video Processing] Frame ${i + 1} result: ${detectedCount} people (confidence: ${(confidence * 100).toFixed(1)}%)`);
+
         results.push({
           timestamp,
           detectedCount,
@@ -189,6 +203,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: visionResult.description,
         });
       }
+      
+      console.log("[Video Processing] All frames processed");
 
       // Determine overall discrepancy status
       const hasOverallDiscrepancy = results.some(r => r.hasDiscrepancy);
