@@ -240,17 +240,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const bookings = await storage.getAllBookings();
       
-      // Enrich bookings with guest and room details
+      // Enrich bookings with guest, room, and entry events details
       const enrichedBookings = await Promise.all(
         bookings.map(async (booking) => {
           const guest = await storage.getGuest(booking.guestId);
           const room = await storage.getRoom(booking.roomId);
+          const entryEvents = await storage.getEntryEventsByBooking(booking.id);
           
           return {
-            ...booking,
-            guestName: guest?.fullName || "不明",
-            roomName: room?.name || "不明",
-            faceImageUrl: guest?.faceImageUrl || null,
+            id: booking.id,
+            reservedAt: booking.reservedAt,
+            reservedCount: booking.reservedCount,
+            status: booking.status,
+            guest: guest ? {
+              id: guest.id,
+              fullName: guest.fullName,
+              faceImageUrl: guest.faceImageUrl,
+            } : null,
+            room: room ? {
+              id: room.id,
+              name: room.name,
+            } : null,
+            entryEvents: entryEvents || [],
           };
         })
       );

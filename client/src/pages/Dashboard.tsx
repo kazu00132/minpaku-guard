@@ -19,12 +19,12 @@ interface BookingWithGuest {
     id: string;
     fullName: string;
     faceImageUrl: string | null;
-  };
+  } | null;
   room: {
     id: string;
     name: string;
-  };
-  entryEvents: Array<{
+  } | null;
+  entryEvents?: Array<{
     id: string;
     eventType: "enter" | "leave";
     peopleCount: number;
@@ -44,8 +44,9 @@ export default function Dashboard() {
   // Transform API data to BookingsTable format
   const bookings: Booking[] = bookingsData.map((booking) => {
     // Calculate actual count from latest entry event
-    const latestEvent = booking.entryEvents.length > 0 
-      ? booking.entryEvents[booking.entryEvents.length - 1]
+    const events = booking.entryEvents ?? [];
+    const latestEvent = events.length > 0 
+      ? events[events.length - 1]
       : null;
     
     // Use the latest event's peopleCount regardless of event type
@@ -53,14 +54,14 @@ export default function Dashboard() {
 
     return {
       id: booking.id,
-      guestName: booking.guest.fullName,
+      guestName: booking.guest?.fullName ?? "不明",
       reservedAt: booking.reservedAt,
       reservedCount: booking.reservedCount,
       actualCount,
       status: booking.status,
-      roomName: booking.room.name,
-      roomId: booking.room.id,
-      faceImageUrl: booking.guest.faceImageUrl,
+      roomName: booking.room?.name ?? "不明",
+      roomId: booking.room?.id ?? "",
+      faceImageUrl: booking.guest?.faceImageUrl ?? null,
     };
   });
 
