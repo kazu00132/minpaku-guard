@@ -222,6 +222,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("[Video Processing] All frames processed");
 
+      // Calculate overall discrepancy
+      const detectedCounts = results.map(r => r.detectedCount);
+      const mostFrequentCount = detectedCounts.sort((a, b) =>
+        detectedCounts.filter(v => v === a).length - detectedCounts.filter(v => v === b).length
+      ).pop() || 0;
+      const hasOverallDiscrepancy = mostFrequentCount !== booking.reservedCount;
+
+      console.log(`[Video Processing] Overall discrepancy: ${hasOverallDiscrepancy} (reserved: ${booking.reservedCount}, detected: ${mostFrequentCount})`);
+
+      // Trigger Dify workflow
+      let difyResponse = null;
+      try {
+        console.log("[Video Processing] Calling Dify workflow...");
+        difyResponse = await triggerDifyWorkflow(
+          hasOverallDiscrepancy,
+          booking.reservedCount,
+          mostFrequentCount,
+          `${booking.guestName} - ${booking.roomName}`
+        );
+        console.log("[Video Processing] Dify workflow triggered successfully");
+      } catch (difyError) {
+        console.error("[Video Processing] Dify workflow error:", difyError);
+      }
+
       // Clean up temp directory and uploaded video
       await fs.rm(tempDir, { recursive: true, force: true });
       if (uploadedVideoPath) {
