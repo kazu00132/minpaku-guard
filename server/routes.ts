@@ -7,6 +7,7 @@ import { promisify } from "util";
 import path from "path";
 import fs from "fs/promises";
 import { existsSync } from "fs";
+import { z } from "zod";
 
 const execAsync = promisify(exec);
 const upload = multer({ storage: multer.memoryStorage() });
@@ -331,6 +332,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Difyへの送信に失敗しました",
         details: error instanceof Error ? error.message : String(error)
       });
+    }
+  });
+
+  // Bookings API
+  app.get("/api/bookings", async (req, res) => {
+    try {
+      const bookings = await storage.getBookings();
+      res.json(bookings);
+    } catch (error) {
+      console.error("Get bookings error:", error);
+      res.status(500).json({ error: "予約一覧の取得に失敗しました" });
+    }
+  });
+
+  app.get("/api/bookings/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const booking = await storage.getBooking(id);
+      
+      if (!booking) {
+        return res.status(404).json({ error: "予約が見つかりません" });
+      }
+      
+      res.json(booking);
+    } catch (error) {
+      console.error("Get booking error:", error);
+      res.status(500).json({ error: "予約の取得に失敗しました" });
+    }
+  });
+
+  app.patch("/api/bookings/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      
+      // Validate request body
+      const updateSchema = z.object({
+        guestName: z.string().min(1).optional(),
+        reservedAt: z.string().datetime().optional(),
+        reservedCount: z.number().int().min(1).max(20).optional(),
+        actualCount: z.number().int().min(0).max(20).nullable().optional(),
+        status: z.enum(["booked", "checked_in", "checked_out"]).optional(),
+        roomName: z.string().min(1).optional(),
+      });
+      
+      const validationResult = updateSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "無効なデータです",
+          details: validationResult.error.errors 
+        });
+      }
+      
+      const updated = await storage.updateBooking(id, validationResult.data);
+      
+      if (!updated) {
+        return res.status(404).json({ error: "予約が見つかりません" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Update booking error:", error);
+      res.status(500).json({ error: "予約の更新に失敗しました" });
     }
   });
 

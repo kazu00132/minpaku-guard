@@ -2,7 +2,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Eye, Phone, Mail } from "lucide-react";
+import { Eye, Phone, Mail, Pencil } from "lucide-react";
 import { format } from "date-fns";
 
 export interface Booking {
@@ -21,9 +21,10 @@ interface BookingsTableProps {
   onViewDetails?: (id: number) => void;
   onCall?: (id: number) => void;
   onEmail?: (id: number) => void;
+  onEdit?: (booking: Booking) => void;
 }
 
-export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail }: BookingsTableProps) {
+export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail, onEdit }: BookingsTableProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "checked_in":
@@ -84,6 +85,14 @@ export default function BookingsTable({ bookings, onViewDetails, onCall, onEmail
               <TableCell>{getStatusBadge(booking.status)}</TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => onEdit?.(booking)}
+                    data-testid={`button-edit-${booking.id}`}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
                   <Button 
                     size="sm" 
                     variant="ghost"

@@ -1,41 +1,24 @@
+import { useState } from "react";
 import DashboardStats from "@/components/DashboardStats";
 import BookingsTable from "@/components/BookingsTable";
 import AlertsList from "@/components/AlertsList";
+import EditBookingDialog from "@/components/EditBookingDialog";
 import { Card } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import type { Booking } from "@/components/BookingsTable";
 
 export default function Dashboard() {
-  const todayBookings = [
-    {
-      id: 1,
-      guestName: "山田 太郎",
-      reservedAt: "2025-10-20T15:00:00",
-      reservedCount: 4,
-      actualCount: 6,
-      status: "checked_in" as const,
-      roomName: "漁師の家",
-      faceImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=YamadaTaro"
-    },
-    {
-      id: 2,
-      guestName: "佐藤 花子",
-      reservedAt: "2025-10-20T16:00:00",
-      reservedCount: 2,
-      actualCount: 2,
-      status: "checked_in" as const,
-      roomName: "長屋 A",
-      faceImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=SatoHanako"
-    },
-    {
-      id: 3,
-      guestName: "田中 次郎",
-      reservedAt: "2025-10-20T17:00:00",
-      reservedCount: 3,
-      actualCount: null,
-      status: "booked" as const,
-      roomName: "長屋 B",
-      faceImageUrl: null
-    }
-  ];
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  const { data: bookings = [], isLoading } = useQuery<Booking[]>({
+    queryKey: ["/api/bookings"],
+  });
+
+  const handleEdit = (booking: Booking) => {
+    setEditingBooking(booking);
+    setIsEditDialogOpen(true);
+  };
 
   const activeAlerts = [
     {
@@ -73,12 +56,17 @@ export default function Dashboard() {
         <div className="lg:col-span-2 space-y-4">
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">本日の到着予定</h2>
-            <BookingsTable 
-              bookings={todayBookings}
-              onViewDetails={(id) => console.log('View booking:', id)}
-              onCall={(id) => console.log('Call guest from booking:', id)}
-              onEmail={(id) => console.log('Email guest from booking:', id)}
-            />
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">読み込み中...</div>
+            ) : (
+              <BookingsTable 
+                bookings={bookings}
+                onEdit={handleEdit}
+                onViewDetails={(id) => console.log('View booking:', id)}
+                onCall={(id) => console.log('Call guest from booking:', id)}
+                onEmail={(id) => console.log('Email guest from booking:', id)}
+              />
+            )}
           </Card>
         </div>
 
@@ -93,6 +81,12 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      <EditBookingDialog
+        booking={editingBooking}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+      />
     </div>
   );
 }

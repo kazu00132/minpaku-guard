@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { Users, AlertTriangle, Lock, Calendar } from "lucide-react";
+import { Users, AlertTriangle, Lock } from "lucide-react";
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -31,27 +31,22 @@ function StatCard({ icon, label, value, variant = "default" }: StatCardProps) {
 
 export default function DashboardStats() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard 
-        icon={<Calendar className="w-8 h-8" />}
-        label="Today's Arrivals"
-        value={3}
-      />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <StatCard 
         icon={<Users className="w-8 h-8" />}
-        label="Active Guests"
+        label="入室中"
         value={5}
         variant="success"
       />
       <StatCard 
         icon={<AlertTriangle className="w-8 h-8" />}
-        label="Active Alerts"
+        label="アラート"
         value={2}
         variant="warning"
       />
       <StatCard 
         icon={<Lock className="w-8 h-8" />}
-        label="Devices Online"
+        label="デバイス稼働状況"
         value="4/4"
         variant="success"
       />
