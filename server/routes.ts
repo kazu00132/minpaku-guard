@@ -8,6 +8,7 @@ import path from "path";
 import { insertBookingSchema, insertGuestSchema } from "@shared/schema";
 import { z } from "zod";
 import { countPeopleInImage } from "./openai";
+import { triggerDifyWorkflow } from "./dify";
 
 const upload = multer({ 
   storage: multer.diskStorage({
@@ -189,6 +190,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Determine overall discrepancy status
+      const hasOverallDiscrepancy = results.some(r => r.hasDiscrepancy);
+      
+      // Calculate most frequently detected count
+      const detectedCounts = results.map(r => r.detectedCount);
+      const mostFrequentCount = detectedCounts.sort((a, b) =>
+        detectedCounts.filter(c => c === a).length - detectedCounts.filter(c => c === b).length
+      ).pop() || 0;
+
+      // Trigger Dify workflow with discrepancy status
+      let difyResponse = null;
+      try {
+        difyResponse = await triggerDifyWorkflow(
+          hasOverallDiscrepancy,
+          booking.reservedCount,
+          mostFrequentCount,
+          `${booking.guestName} - ${booking.roomName}`
+        );
+        console.log("Dify workflow triggered successfully:", difyResponse);
+      } catch (difyError) {
+        console.error("Failed to trigger Dify workflow:", difyError);
+        // Continue processing even if Dify fails
+      }
+
       // Clean up temp directory and uploaded video
       await fs.rm(tempDir, { recursive: true, force: true });
       if (uploadedVideoPath) {
@@ -200,6 +225,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         results,
         bookingName: `${booking.guestName} - ${booking.roomName}`,
         reservedCount: booking.reservedCount,
+        difyResult: difyResponse ? {
+          workflowRunId: difyResponse.workflow_run_id,
+          status: difyResponse.data.status,
+          outputs: difyResponse.data.outputs,
+          error: difyResponse.data.error,
+        } : null,
       });
     } catch (error) {
       console.error("Video processing error:", error);
