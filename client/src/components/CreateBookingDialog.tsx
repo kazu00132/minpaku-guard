@@ -1,16 +1,15 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus } from "lucide-react";
 
 const createBookingSchema = z.object({
   guestName: z.string().min(1, "氏名を入力してください"),
@@ -28,8 +27,12 @@ interface Room {
   notes: string | null;
 }
 
-export default function CreateBookingDialog() {
-  const [open, setOpen] = useState(false);
+interface CreateBookingDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function CreateBookingDialog({ open, onOpenChange }: CreateBookingDialogProps) {
   const { toast } = useToast();
 
   const { data: rooms = [] } = useQuery<Room[]>({
@@ -45,6 +48,13 @@ export default function CreateBookingDialog() {
       reservedCount: 1,
     },
   });
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+    }
+  }, [open, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateBookingForm) => {
@@ -73,8 +83,7 @@ export default function CreateBookingDialog() {
         title: "予約を作成しました",
         description: "新しい予約が正常に追加されました",
       });
-      setOpen(false);
-      form.reset();
+      onOpenChange(false);
     },
     onError: (error: Error) => {
       toast({
@@ -90,13 +99,7 @@ export default function CreateBookingDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button data-testid="button-create-booking">
-          <Plus className="w-4 h-4 mr-2" />
-          予約追加
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]" data-testid="dialog-create-booking">
         <DialogHeader>
           <DialogTitle>新規予約作成</DialogTitle>
@@ -191,7 +194,7 @@ export default function CreateBookingDialog() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setOpen(false)}
+                onClick={() => onOpenChange(false)}
                 data-testid="button-cancel"
               >
                 キャンセル
