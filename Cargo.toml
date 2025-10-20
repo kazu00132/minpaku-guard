@@ -1,0 +1,6 @@
+[package]
+name = "timu2-RecipeRouter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]

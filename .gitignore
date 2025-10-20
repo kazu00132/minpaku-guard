@@ -10,3 +10,8 @@ vite.config.ts.*
 logs/
 reports/
 *.log
+
+
+# Added by cargo
+
+/target
