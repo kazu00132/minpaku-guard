@@ -4,3 +4,9 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+# Miyabi
+.miyabi.yml
+.worktrees/
+logs/
+reports/
+*.log
